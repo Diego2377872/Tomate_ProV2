@@ -1,0 +1,1676 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes, viewport-fit=cover">
+    <title>Tomate PRO 🍅 | AgTech Suite</title>
+    <!-- Leaflet CSS/JS -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <!-- Supabase JS -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <!-- Font Awesome 6 -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+    <!-- Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+    <!-- PapaParse para CSV -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
+    <!-- Export to Excel (SheetJS) -->
+    <script src="https://cdn.sheetjs.com/xlsx-0.20.2/package/dist/xlsx.full.min.js"></script>
+    <!-- Export to Shapefile (shp-write) y file-saver -->
+    <script src="https://unpkg.com/shp-write@2.0.1/shpwrite.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/FileSaver.js/2.0.5/FileSaver.min.js"></script>
+	<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#e74c3c">
+
+<script>
+  if ('serviceWorker' in navigator) {
+    window.addEventListener('load', () => {
+      navigator.serviceWorker.register('sw.js')
+        .then(reg => console.log('Service Worker registrado'))
+        .catch(err => console.log('Error al registrar SW', err));
+    });
+  }
+</script>
+	
+	
+    <style>
+        /* Tema oscuro (default) */
+        :root {
+            --bg-primary: #0a0f1a;
+            --bg-secondary: rgba(18, 25, 45, 0.7);
+            --card-bg: rgba(18, 25, 45, 0.7);
+            --text-primary: #eef2f5;
+            --text-secondary: #b0c4de;
+            --border-color: rgba(255,255,255,0.08);
+            --input-bg: #111827;
+            --input-border: #2a3a4a;
+            --accent-gold: #f4b942;
+            --accent-green: #2c7a4a;
+            --accent-red: #c44536;
+            --accent-blue: #3a6b8f;
+            --modal-bg: #111827;
+            --modal-header: #1e293b;
+            --ficha-bg: #0f172a;
+            --map-control-bg: #111827;
+            --shadow: 0 8px 20px rgba(0,0,0,0.3);
+        }
+
+        body.light {
+            --bg-primary: #f4f7fc;
+            --bg-secondary: rgba(255,255,255,0.9);
+            --card-bg: #ffffff;
+            --text-primary: #1e2f3e;
+            --text-secondary: #4a627a;
+            --border-color: #e2edf2;
+            --input-bg: #ffffff;
+            --input-border: #cfdfe8;
+            --accent-gold: #e67e22;
+            --accent-green: #2c7a4a;
+            --accent-red: #c44536;
+            --accent-blue: #2c5570;
+            --modal-bg: #ffffff;
+            --modal-header: #1e3a5f;
+            --ficha-bg: #f9fbfd;
+            --map-control-bg: #ffffff;
+            --shadow: 0 8px 20px rgba(0,0,0,0.08);
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Inter', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+        }
+
+        body {
+            background: var(--bg-primary);
+            padding: 20px;
+            color: var(--text-primary);
+            transition: background 0.3s, color 0.3s;
+        }
+
+        .pro-container {
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+
+        .glass-header {
+            background: var(--bg-secondary);
+            backdrop-filter: blur(12px);
+            border-radius: 28px;
+            padding: 20px 28px;
+            margin-bottom: 28px;
+            box-shadow: var(--shadow);
+            border: 1px solid var(--border-color);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+        }
+
+        .logo-area h1 {
+            font-size: 1.8rem;
+            font-weight: 700;
+            letter-spacing: -0.5px;
+            background: linear-gradient(135deg, var(--accent-gold), #e67e22);
+            -webkit-background-clip: text;
+            background-clip: text;
+            color: transparent;
+        }
+        .logo-area p {
+            opacity: 0.7;
+            font-size: 0.85rem;
+            color: var(--text-secondary);
+        }
+        .user-badge {
+            background: rgba(255,255,255,0.1);
+            backdrop-filter: blur(4px);
+            padding: 8px 18px;
+            border-radius: 50px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            border: 1px solid var(--border-color);
+        }
+        .btn-logout {
+            background: var(--accent-red);
+            border: none;
+            padding: 6px 14px;
+            border-radius: 40px;
+            color: white;
+            font-weight: 600;
+            cursor: pointer;
+            transition: 0.2s;
+        }
+        .btn-logout:hover {
+            background: #a83224;
+            transform: scale(0.98);
+        }
+
+        .dashboard-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 28px;
+        }
+
+        .premium-card {
+            background: var(--card-bg);
+            backdrop-filter: blur(8px);
+            border-radius: 28px;
+            padding: 20px 24px;
+            box-shadow: var(--shadow);
+            border: 1px solid var(--border-color);
+            transition: transform 0.2s ease, box-shadow 0.2s;
+        }
+        .premium-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 12px 28px rgba(0,0,0,0.3);
+        }
+
+        .card-title {
+            font-size: 1.35rem;
+            font-weight: 700;
+            margin-bottom: 18px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            border-left: 4px solid var(--accent-gold);
+            padding-left: 14px;
+            color: var(--text-primary);
+        }
+
+        .form-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 12px 20px;
+        }
+        .full-width {
+            grid-column: span 2;
+        }
+
+        label {
+            font-weight: 500;
+            font-size: 0.85rem;
+            margin-top: 6px;
+            display: block;
+            color: var(--text-secondary);
+        }
+        input, select, textarea {
+            width: 100%;
+            padding: 10px 12px;
+            margin: 4px 0 10px 0;
+            border: 1px solid var(--input-border);
+            border-radius: 16px;
+            font-size: 0.9rem;
+            background: var(--input-bg);
+            color: var(--text-primary);
+            transition: 0.2s;
+        }
+        input:focus, select:focus, textarea:focus {
+            outline: none;
+            border-color: var(--accent-gold);
+            box-shadow: 0 0 0 3px rgba(244,185,66,0.2);
+        }
+
+        button {
+            background: linear-gradient(135deg, var(--accent-green), #1e5a38);
+            color: white;
+            padding: 12px;
+            border: none;
+            border-radius: 40px;
+            font-weight: 700;
+            font-size: 1rem;
+            cursor: pointer;
+            transition: 0.2s;
+            width: 100%;
+        }
+        button:hover {
+            transform: scale(0.98);
+            background: linear-gradient(135deg, #3a9a5a, #2a6a48);
+        }
+        .btn-secondary {
+            background: linear-gradient(135deg, #3a6b8f, #2c5570);
+        }
+        .btn-secondary:hover {
+            background: linear-gradient(135deg, #4a7b9f, #3c6570);
+        }
+        .btn-outline {
+            background: transparent;
+            border: 1px solid var(--accent-gold);
+            color: var(--accent-gold);
+        }
+        .btn-outline:hover {
+            background: rgba(244,185,66,0.1);
+            transform: none;
+        }
+
+        #map {
+            height: 280px;
+            border-radius: 24px;
+            margin: 12px 0;
+            border: 1px solid var(--input-border);
+            position: relative;
+        }
+
+        .hidden {
+            display: none;
+        }
+
+        .ia-recommend-box {
+            background: rgba(44,122,74,0.15);
+            padding: 16px;
+            border-radius: 20px;
+            margin-top: 15px;
+            border-left: 4px solid var(--accent-gold);
+            font-size: 0.9rem;
+            white-space: pre-line;
+            backdrop-filter: blur(4px);
+        }
+
+        .registro-item {
+            background: var(--ficha-bg);
+            border-radius: 18px;
+            padding: 14px;
+            margin-bottom: 12px;
+            border: 1px solid var(--border-color);
+            transition: 0.1s;
+        }
+        .registro-header {
+            display: flex;
+            justify-content: space-between;
+            font-weight: 700;
+            margin-bottom: 8px;
+            flex-wrap: wrap;
+        }
+        .acciones {
+            display: flex;
+            gap: 12px;
+            justify-content: flex-end;
+            margin-top: 8px;
+        }
+        .acciones i {
+            cursor: pointer;
+            font-size: 1.2rem;
+            transition: 0.1s;
+        }
+        /* Colores de iconos */
+        .icon-map { color: var(--accent-gold); }
+        .icon-view { color: var(--accent-green); }
+        .icon-edit { color: var(--accent-blue); }
+        .icon-delete { color: var(--accent-red); }
+        .acciones i:hover {
+            opacity: 0.8;
+            transform: scale(1.05);
+        }
+        .badge-variedad {
+            background: rgba(244,185,66,0.2);
+            padding: 4px 12px;
+            border-radius: 50px;
+            font-size: 0.7rem;
+            font-weight: 600;
+            color: var(--accent-gold);
+        }
+        .empty-state {
+            text-align: center;
+            padding: 40px 0;
+            color: var(--text-secondary);
+        }
+        .config-panel {
+            background: var(--card-bg);
+            max-width: 500px;
+            margin: 80px auto;
+            padding: 32px;
+            border-radius: 32px;
+            box-shadow: var(--shadow);
+            text-align: center;
+            border: 1px solid var(--border-color);
+        }
+        .flex-btns {
+            display: flex;
+            gap: 12px;
+            margin-top: 10px;
+        }
+        .checkbox-group {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            margin: 8px 0 12px;
+        }
+        .checkbox-group label {
+            font-weight: normal;
+            display: inline-flex;
+            align-items: center;
+            gap: 5px;
+            background: var(--input-bg);
+            padding: 5px 12px;
+            border-radius: 40px;
+            font-size: 0.8rem;
+            border: 1px solid var(--input-border);
+        }
+        .checkbox-group input {
+            width: auto;
+            margin: 0;
+        }
+        /* Scroll para la lista de registros */
+        #registrosList {
+            max-height: 400px;
+            overflow-y: auto;
+            padding-right: 5px;
+        }
+        .modal-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.8);
+            backdrop-filter: blur(8px);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 2000;
+            visibility: hidden;
+            opacity: 0;
+            transition: 0.2s;
+        }
+        .modal-overlay.active {
+            visibility: visible;
+            opacity: 1;
+        }
+        .modal-container {
+            background: var(--modal-bg);
+            width: 90%;
+            max-width: 800px;
+            max-height: 85vh;
+            border-radius: 32px;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+            box-shadow: 0 25px 40px rgba(0,0,0,0.5);
+            border: 1px solid var(--border-color);
+        }
+        .modal-header {
+            padding: 20px 24px;
+            background: var(--modal-header);
+            color: white;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 1px solid var(--border-color);
+        }
+        .modal-header h3 {
+            margin: 0;
+            font-size: 1.4rem;
+        }
+        .modal-close {
+            background: none;
+            border: none;
+            color: white;
+            font-size: 1.8rem;
+            cursor: pointer;
+            width: auto;
+            padding: 0;
+        }
+        .modal-body {
+            padding: 20px 24px;
+            overflow-y: auto;
+            flex: 1;
+        }
+        .ficha-productor {
+            background: var(--ficha-bg);
+            border-radius: 20px;
+            padding: 16px;
+            margin-bottom: 20px;
+            border-left: 4px solid var(--accent-gold);
+        }
+        .map-control-icon {
+            background: var(--map-control-bg);
+            border-radius: 8px;
+            padding: 4px 8px;
+            margin: 2px;
+            cursor: pointer;
+            font-size: 1.2rem;
+        }
+        @media (max-width: 900px) {
+            .dashboard-grid {
+                grid-template-columns: 1fr;
+            }
+            .glass-header {
+                flex-direction: column;
+                gap: 12px;
+                text-align: center;
+            }
+            .form-grid {
+                grid-template-columns: 1fr;
+            }
+            .full-width {
+                grid-column: span 1;
+            }
+        }
+        .leaflet-control-custom {
+            background: var(--map-control-bg);
+            border: 1px solid var(--input-border);
+            border-radius: 12px;
+            padding: 5px;
+            display: flex;
+            gap: 8px;
+            box-shadow: 0 2px 6px rgba(0,0,0,0.3);
+        }
+        .leaflet-control-custom a {
+            color: var(--text-primary);
+            text-decoration: none;
+            font-size: 1.2rem;
+            padding: 6px 8px;
+            border-radius: 8px;
+            transition: 0.1s;
+        }
+        .leaflet-control-custom a:hover {
+            background: var(--accent-green);
+        }
+        .leaflet-control-custom a.active {
+            background: var(--accent-green);
+            color: white;
+        }
+        .theme-toggle {
+            background: none;
+            border: none;
+            color: var(--text-primary);
+            font-size: 1.3rem;
+            cursor: pointer;
+            width: auto;
+            padding: 0 8px;
+        }
+        button, .btn-logout, .btn-secondary, .btn-outline, .acciones i {
+            touch-action: manipulation;
+        }
+    </style>
+	
+</head>
+<body>
+<div id="appRoot" class="pro-container"></div>
+
+<script>
+    // Configuración Supabase
+    const DEFAULT_SUPABASE_URL = "https://updxutkajdpdkyritgxc.supabase.co";
+    const DEFAULT_SUPABASE_ANON = "sb_publishable_J5RjpJ2TFydwv-5xJCiQkw_d3kBSeG4";
+
+    if (!localStorage.getItem('tomate_supabase_url')) {
+        localStorage.setItem('tomate_supabase_url', DEFAULT_SUPABASE_URL);
+        localStorage.setItem('tomate_supabase_anon', DEFAULT_SUPABASE_ANON);
+    }
+
+    let supabaseClient = null;
+    let currentUser = null;
+    let currentMap = null;
+    let currentMarker = null;
+    let chartInstance = null;
+    let registrosData = [];
+    let markersLayer = null;
+    let currentBaseLayer = null;
+    let theme = localStorage.getItem('theme') || 'dark';
+
+    let dbConfig = {
+        url: localStorage.getItem('tomate_supabase_url'),
+        anonKey: localStorage.getItem('tomate_supabase_anon')
+    };
+
+    // Listas de opciones
+    const variedadesList = ["Santa Cruz", "Santa Clara", "Ravena", "Katana", "Tipo Cherry", "Jumbo", "Sahariana", "Caniati", "Otro"];
+    const fenologiaList = [
+        "Germinación (0–7 días)",
+        "Plántula / Emergencia (7–20 días)",
+        "Crecimiento Vegetativo (20–40 días)",
+        "Inicio de Floración (30–50 días)",
+        "Floración Plena (40–60 días)",
+        "Cuajado de Frutos (50–70 días)",
+        "Desarrollo de Fruto (60–90 días)",
+        "Maduración (80–120 días)",
+        "Senescencia (120+ días)"
+    ];
+    const riegoList = ["Goteo", "Aspersión", "Manual", "Otro"];
+    const sistemaProductivoList = ["Caseta (Invernadero)", "Cielo Abierto", "Otro"];
+    const tipoSueloList = ["Arcilloso", "Arenoso", "Franco", "Franco-arcilloso", "Franco-arenoso", "Limoso", "Otro"];
+    const plagasCheck = ["Mosca blanca", "Trips", "Pulgón", "Minador", "Gusano cogollero","Palomilla","Ybytazo", "Ácaros", "Otra"];
+    const enfermedadesCheck = ["Mildiu", "Mbiru", "Septoriosis", "Vira Cabeza", "Tizon","Botrytis", "Fusarium", "Mancha Bacteriana", "Otra"];
+
+    // Paleta de colores para gráficos
+    const colorPalette = ['#f4b942', '#2c7a4a', '#c44536', '#3a6b8f', '#f39c12', '#27ae60', '#e67e22', '#2980b9', '#8e44ad', '#16a085'];
+
+    // ========== TRADUCCIÓN DE ERRORES DE SUPABASE ==========
+    function translateSupabaseError(errorMessage) {
+        if (!errorMessage) return "Error desconocido";
+        const lowerMsg = errorMessage.toLowerCase();
+        if (lowerMsg.includes("email rate limit exceeded")) {
+            return "⚠️ Has alcanzado el límite de registros por hora. Espera unos minutos e intenta de nuevo.";
+        }
+        if (lowerMsg.includes("invalid login credentials")) {
+            return "❌ Credenciales inválidas. Revisa tu email y contraseña.";
+        }
+        if (lowerMsg.includes("user already registered")) {
+            return "📧 Este correo ya está registrado. Inicia sesión o usa una cuenta diferente.";
+        }
+        if (lowerMsg.includes("email not confirmed")) {
+            return "✉️ Debes confirmar tu correo electrónico antes de iniciar sesión. Revisa tu bandeja de entrada.";
+        }
+        if (lowerMsg.includes("password should be at least 6 characters")) {
+            return "🔐 La contraseña debe tener al menos 6 caracteres.";
+        }
+        if (lowerMsg.includes("invalid email")) {
+            return "📧 El formato del correo electrónico no es válido.";
+        }
+        if (lowerMsg.includes("network error")) {
+            return "🌐 Error de red. Verifica tu conexión a Internet.";
+        }
+        return `⚠️ Error: ${errorMessage}`;
+    }
+
+    function applyTheme() {
+        if (theme === 'light') {
+            document.body.classList.add('light');
+        } else {
+            document.body.classList.remove('light');
+        }
+    }
+
+    function toggleTheme() {
+        theme = theme === 'dark' ? 'light' : 'dark';
+        localStorage.setItem('theme', theme);
+        applyTheme();
+    }
+
+    function renderApp() {
+        applyTheme();
+        const root = document.getElementById('appRoot');
+        if (!dbConfig.url || !dbConfig.anonKey) {
+            renderConfigPanel(root);
+            return;
+        }
+        if (!supabaseClient) {
+            try {
+                supabaseClient = window.supabase.createClient(dbConfig.url, dbConfig.anonKey);
+            } catch(e) {
+                renderConfigPanel(root, "Error al inicializar cliente");
+                return;
+            }
+        }
+        checkAuthAndRender(root);
+    }
+
+    async function checkAuthAndRender(root) {
+        if (!supabaseClient) return;
+        const { data: { user }, error } = await supabaseClient.auth.getUser();
+        if (user && !error) {
+            currentUser = user;
+            renderMainApp(root);
+            loadUserRegistros();
+        } else {
+            renderAuthScreen(root);
+        }
+    }
+
+    function renderConfigPanel(root, errorMsg = '') {
+        root.innerHTML = `
+            <div class="config-panel">
+                <i class="fas fa-cloud-upload-alt" style="font-size: 48px; color:var(--accent-gold);"></i>
+                <h2 style="margin:16px 0">🌱 Conectar a Supabase</h2>
+                <p style="margin-bottom:20px;">Usando tus credenciales guardadas</p>
+                <input type="text" id="supabaseUrl" value="${dbConfig.url}">
+                <input type="text" id="supabaseAnon" value="${dbConfig.anonKey}">
+                ${errorMsg ? `<p style="color:var(--accent-red);">${errorMsg}</p>` : ''}
+                <button id="saveConfigBtn">Guardar y conectar</button>
+            </div>
+        `;
+        document.getElementById('saveConfigBtn')?.addEventListener('click', () => {
+            const newUrl = document.getElementById('supabaseUrl').value.trim();
+            const newAnon = document.getElementById('supabaseAnon').value.trim();
+            if (!newUrl || !newAnon) return;
+            localStorage.setItem('tomate_supabase_url', newUrl);
+            localStorage.setItem('tomate_supabase_anon', newAnon);
+            dbConfig = { url: newUrl, anonKey: newAnon };
+            supabaseClient = window.supabase.createClient(newUrl, newAnon);
+            renderApp();
+        });
+    }
+
+    function renderAuthScreen(root) {
+        root.innerHTML = `
+            <div style="max-width: 500px; margin: 40px auto;">
+                <div class="premium-card" style="text-align:center;">
+                    <i class="fas fa-tomato" style="font-size: 48px; color:var(--accent-gold);"></i>
+                    <h2 style="margin:15px 0">Tomate PRO 🍅</h2>
+                    <p>Accede con tu cuenta profesional</p>
+                    <div style="margin: 20px 0;">
+                        <input type="email" id="loginEmail" placeholder="Email">
+                        <input type="password" id="loginPassword" placeholder="Contraseña">
+                        <div class="flex-btns">
+                            <button id="btnLogin">Iniciar sesión</button>
+                            <button id="btnRegister" style="background:#2c5f8a;">Registrarse</button>
+                        </div>
+                    </div>
+                    <div id="authMsg" style="color:var(--accent-gold);"></div>
+                </div>
+            </div>
+        `;
+        document.getElementById('btnLogin')?.addEventListener('click', async () => {
+            const email = document.getElementById('loginEmail').value;
+            const pwd = document.getElementById('loginPassword').value;
+            const { error } = await supabaseClient.auth.signInWithPassword({ email, password: pwd });
+            if (error) {
+                document.getElementById('authMsg').innerHTML = translateSupabaseError(error.message);
+            } else {
+                renderApp();
+            }
+        });
+        document.getElementById('btnRegister')?.addEventListener('click', async () => {
+            const email = document.getElementById('loginEmail').value;
+            const pwd = document.getElementById('loginPassword').value;
+            const { error } = await supabaseClient.auth.signUp({ email, password: pwd });
+            if (error) {
+                document.getElementById('authMsg').innerHTML = translateSupabaseError(error.message);
+            } else {
+                document.getElementById('authMsg').innerHTML = "✅ Registro exitoso. Revisa tu correo para confirmar la cuenta, luego inicia sesión.";
+            }
+        });
+    }
+
+    function initMap() {
+        if (currentMap) currentMap.remove();
+        currentMap = L.map('map').setView([-25.4, -57.5], 13);
+        currentBaseLayer = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
+        }).addTo(currentMap);
+        markersLayer = L.layerGroup().addTo(currentMap);
+        currentMarker = null;
+
+        const customControl = L.Control.extend({
+            options: { position: 'topright' },
+            onAdd: function(map) {
+                const div = L.DomUtil.create('div', 'leaflet-control-custom');
+                div.innerHTML = `
+                    <a href="#" id="map-osm" title="OpenStreetMap"><i class="fas fa-globe"></i></a>
+                    <a href="#" id="map-google" title="Google Híbrido"><i class="fas fa-map"></i></a>
+                    <a href="#" id="map-esri" title="Esri Imagery"><i class="fas fa-satellite"></i></a>
+                `;
+                L.DomEvent.disableClickPropagation(div);
+                return div;
+            }
+        });
+        currentMap.addControl(new customControl());
+
+        const osmLayer = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { attribution: 'OSM' });
+        const googleHybrid = L.tileLayer('https://mt1.google.com/vt/lyrs=y&x={x}&y={y}&z={z}', {
+            attribution: 'Google',
+            maxZoom: 20
+        });
+        const esriImagery = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
+            attribution: 'Tiles &copy; Esri',
+            maxZoom: 18
+        });
+
+        const setActiveStyle = (activeId) => {
+            ['map-osm', 'map-google', 'map-esri'].forEach(id => {
+                const el = document.getElementById(id);
+                if (el) {
+                    if (id === activeId) el.classList.add('active');
+                    else el.classList.remove('active');
+                }
+            });
+        };
+
+        document.getElementById('map-osm')?.addEventListener('click', (e) => {
+            e.preventDefault();
+            currentMap.removeLayer(currentBaseLayer);
+            currentBaseLayer = osmLayer.addTo(currentMap);
+            setActiveStyle('map-osm');
+        });
+        document.getElementById('map-google')?.addEventListener('click', (e) => {
+            e.preventDefault();
+            currentMap.removeLayer(currentBaseLayer);
+            currentBaseLayer = googleHybrid.addTo(currentMap);
+            setActiveStyle('map-google');
+        });
+        document.getElementById('map-esri')?.addEventListener('click', (e) => {
+            e.preventDefault();
+            currentMap.removeLayer(currentBaseLayer);
+            currentBaseLayer = esriImagery.addTo(currentMap);
+            setActiveStyle('map-esri');
+        });
+        setActiveStyle('map-osm');
+
+        currentMap.on('click', function(e) {
+            setMarker(e.latlng.lat, e.latlng.lng);
+        });
+    }
+
+    function setMarker(lat, lng) {
+        if (currentMarker) currentMap.removeLayer(currentMarker);
+        currentMarker = L.marker([lat, lng]).addTo(currentMap);
+        document.getElementById('coords').value = `${lat},${lng}`;
+        currentMap.setView([lat, lng], 14);
+    }
+
+    function clearMarker() {
+        if (currentMarker) currentMap.removeLayer(currentMarker);
+        currentMarker = null;
+        document.getElementById('coords').value = '';
+    }
+
+    function renderMainApp(root) {
+        const variedadOptions = variedadesList.map(v => `<option value="${v}">${v}</option>`).join('');
+        const fenologiaOptions = fenologiaList.map(f => `<option value="${f}">${f}</option>`).join('');
+        const riegoOptions = riegoList.map(r => `<option value="${r}">${r}</option>`).join('');
+        const sistemaOptions = sistemaProductivoList.map(s => `<option value="${s}">${s}</option>`).join('');
+        const sueloOptions = tipoSueloList.map(s => `<option value="${s}">${s}</option>`).join('');
+        const plagasHtml = plagasCheck.map(p => `<label><input type="checkbox" name="plagas" value="${p}"> ${p}</label>`).join('');
+        const enfermedadesHtml = enfermedadesCheck.map(e => `<label><input type="checkbox" name="enfermedades" value="${e}"> ${e}</label>`).join('');
+
+        root.innerHTML = `
+            <div>
+                <div class="glass-header">
+                    <div class="logo-area">
+                        <h1><i class="fas fa-tomato"></i> Tomate PRO 🍅</h1>
+                        <p>Geovisor Profesional | IA Agronómica | Gestión Inteligente</p>
+                    </div>
+                    <div style="display: flex; gap: 12px; align-items: center;">
+                        <button class="theme-toggle" id="themeToggle"><i class="fas ${theme === 'dark' ? 'fa-sun' : 'fa-moon'}"></i></button>
+                        <div class="user-badge">
+                            <i class="fas fa-user-check"></i> ${currentUser?.email || 'Agricultor'}
+                            <button id="logoutBtnPro" class="btn-logout"><i class="fas fa-sign-out-alt"></i> Salir</button>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="dashboard-grid">
+                    <!-- COLUMNA FORMULARIO -->
+                    <div class="premium-card">
+                        <div class="card-title"><i class="fas fa-pen-alt"></i> Registro agronómico detallado</div>
+                        <form id="proForm">
+                            <div class="form-grid">
+                                <div class="full-width"><label>Productor / Lote *</label><input type="text" id="productor" required></div>
+                                <div><label>Cédula de Identidad (CI)</label><input type="text" id="ci" placeholder="Ej: 12345678"></div>
+                                <div><label>Fecha monitoreo</label><input type="date" id="fecha" value="${new Date().toISOString().slice(0,10)}"></div>
+                                <div><label>Fecha siembra</label><input type="date" id="fechaSiembra"></div>
+                            </div>
+
+                            <label>Geolocalización (clic en mapa o usar GPS)</label>
+                            <div id="map"></div>
+                            <div style="display: flex; gap: 10px; margin-top: 8px;">
+                                <input type="text" id="coords" readonly placeholder="Lat, Long" style="flex:1;">
+                                <button type="button" id="gpsBtn" class="btn-outline" style="width: auto; padding: 8px 16px;"><i class="fas fa-location-dot"></i></button>
+                                <button type="button" id="clearMarkerBtn" class="btn-outline" style="width: auto; padding: 8px 16px;"><i class="fas fa-times"></i></button>
+                            </div>
+
+                            <label>Sistema Productivo</label>
+                            <select id="sistemaProductivo">${sistemaOptions}</select>
+                            <input type="text" id="sistemaProductivoOtro" class="hidden" placeholder="Especifique otro sistema">
+
+                            <label>Variedad</label>
+                            <select id="variedadSelect">${variedadOptions}</select>
+                            <input type="text" id="variedadOtro" class="hidden" placeholder="Especifique variedad">
+
+                            <label>Fenología</label>
+                            <select id="fenologia">${fenologiaOptions}</select>
+
+                            <label>Sistema de riego</label>
+                            <select id="riego">${riegoOptions}</select>
+                            <input type="text" id="riegoOtro" class="hidden" placeholder="Especifique otro riego">
+
+                            <div class="form-grid">
+                                <div><label>N° plantas (estimado)</label><input type="number" id="numPlantas" step="1"></div>
+                                <div><label>Marco plantación (m)</label><input type="text" id="marcoPlantacion" placeholder="Ej: 0.5x1.2"></div>
+                                <div><label>Tipo de suelo</label><select id="tipoSuelo">${sueloOptions}</select></div>
+                                <div><label>pH (estimado)</label><input type="number" id="ph" step="0.1" min="0" max="14"></div>
+                                <div><label>Materia orgánica (%)</label><input type="number" id="materiaOrganica" step="0.1"></div>
+                                <div><label>Área (m²)</label><input type="number" id="area" step="any"></div>
+                                <div><label>Rendimiento estimado (kg)</label><input type="number" id="rendimiento" step="any"></div>
+                            </div>
+
+                            <div class="form-grid">
+                                <div class="full-width"><label>Análisis de suelo</label>
+                                    <div style="display: flex; gap: 20px;">
+                                        <label><input type="radio" name="analisisSuelo" value="si"> Sí</label>
+                                        <label><input type="radio" name="analisisSuelo" value="no" checked> No</label>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <label>Plagas detectadas</label>
+                            <div class="checkbox-group" id="plagasGroup">${plagasHtml}</div>
+                            <input type="text" id="otraPlaga" placeholder="Otra plaga (especificar)" class="full-width">
+                            
+                            <label>Enfermedades detectadas</label>
+                            <div class="checkbox-group" id="enfermedadesGroup">${enfermedadesHtml}</div>
+                            <input type="text" id="otraEnfermedad" placeholder="Otra enfermedad (especificar)" class="full-width">
+                            
+                            <label>Control aplicado (productos, dosis)</label>
+                            <textarea id="controlAplicado" rows="2" placeholder="Ej: Imidacloprid 0.5 l/ha, etc."></textarea>
+                            
+                            <label>Notas técnicas adicionales</label>
+                            <textarea id="notas" rows="2"></textarea>
+
+                            <div id="iaRecomendationBox" class="ia-recommend-box">🤖 La IA generará recomendaciones al guardar...</div>
+                            
+                            <div style="display: flex; gap: 12px; margin-top: 10px;">
+                                <button type="submit"><i class="fas fa-cloud-upload-alt"></i> Guardar en nube</button>
+                                <button type="button" id="batchUploadBtn" class="btn-secondary"><i class="fas fa-upload"></i> Carga masiva</button>
+                            </div>
+                        </form>
+                    </div>
+
+                    <!-- COLUMNA REGISTROS + GRÁFICO -->
+                    <div class="premium-card">
+                        <div class="card-title"><i class="fas fa-chart-pie"></i> Estadísticas</div>
+                        <div style="margin-bottom: 10px;">
+                            <label>Variable para gráfico</label>
+                            <select id="chartVariable" style="margin-bottom: 10px;">
+                                <option value="fenologia">Fenología</option>
+                                <option value="variedad">Variedad</option>
+                                <option value="sistema_productivo">Sistema productivo</option>
+                                <option value="riego">Riego</option>
+                                <option value="tipo_suelo">Tipo de suelo</option>
+                                <option value="analisis_suelo">Análisis de suelo</option>
+                            </select>
+                        </div>
+                        <div style="margin-bottom: 10px;">
+                            <label>Tipo de gráfico</label>
+                            <select id="chartType" style="margin-bottom: 10px;">
+                                <option value="pie">Circular (Pastel)</option>
+                                <option value="bar">Barras</option>
+                            </select>
+                        </div>
+                        <canvas id="miniChart" style="max-height: 250px; margin-bottom: 20px;"></canvas>
+                        
+                        <div class="card-title" style="margin-top: 20px;"><i class="fas fa-list"></i> Últimos monitoreos</div>
+                        <div id="registrosList" class="tabla-registros">
+                            <div class="loading-spinner"><i class="fas fa-spinner fa-pulse"></i> Cargando...</div>
+                        </div>
+                        <div style="display: flex; gap: 12px; margin-top: 12px;">
+                            <button id="exportExcelBtn" class="btn-secondary"><i class="fas fa-file-excel"></i> Exportar Excel</button>
+                            <button id="exportShapefileBtn" class="btn-secondary"><i class="fas fa-map-marked-alt"></i> Exportar Shapefile</button>
+                        </div>
+                        <button id="refreshDataBtn" class="btn-secondary" style="margin-top: 12px;"><i class="fas fa-sync-alt"></i> Sincronizar</button>
+                    </div>
+                </div>
+            </div>
+            <!-- Modal para ver finca -->
+            <div id="fincaModal" class="modal-overlay">
+                <div class="modal-container">
+                    <div class="modal-header">
+                        <h3><i class="fas fa-tractor"></i> Información de la finca</h3>
+                        <button class="modal-close" id="closeModalBtn">&times;</button>
+                    </div>
+                    <div class="modal-body" id="modalBody"></div>
+                </div>
+            </div>
+            <!-- Modal para carga masiva -->
+            <div id="batchModal" class="modal-overlay">
+                <div class="modal-container">
+                    <div class="modal-header">
+                        <h3><i class="fas fa-file-csv"></i> Carga masiva de datos</h3>
+                        <button class="modal-close" id="closeBatchModalBtn">&times;</button>
+                    </div>
+                    <div class="modal-body">
+                        <p>Sube un archivo CSV con los siguientes campos (encabezados obligatorios):</p>
+                        <pre style="background:var(--ficha-bg); padding:10px; border-radius:12px; font-size:12px; color:var(--text-secondary);">
+productor,ci,fecha,fecha_siembra,lat,lng,sistema_productivo,variedad,fenologia,riego,num_plantas,marco_plantacion,tipo_suelo,ph,materia_organica,area,rendimiento_estimado,plagas,enfermedades,control_aplicado,notas,analisis_suelo
+                        </pre>
+                        <p><strong>Nota:</strong> Las columnas "plagas" y "enfermedades" deben ser listas separadas por punto y coma (;). Ejemplo: "Mosca blanca;Trips".</p>
+                        <input type="file" id="csvFile" accept=".csv">
+                        <button id="uploadCsvBtn" style="margin-top: 15px;">Procesar e insertar</button>
+                        <div id="batchResult" style="margin-top: 15px;"></div>
+                    </div>
+                </div>
+            </div>
+            <!-- Modal para edición -->
+            <div id="editModal" class="modal-overlay">
+                <div class="modal-container">
+                    <div class="modal-header">
+                        <h3><i class="fas fa-edit"></i> Editar registro</h3>
+                        <button class="modal-close" id="closeEditModalBtn">&times;</button>
+                    </div>
+                    <div class="modal-body" id="editModalBody">
+                        <!-- Contenido dinámico -->
+                    </div>
+                </div>
+            </div>
+        `;
+
+        initMap();
+
+        document.getElementById('gpsBtn')?.addEventListener('click', () => {
+            if (!navigator.geolocation) {
+                alert("Geolocalización no soportada");
+                return;
+            }
+            navigator.geolocation.getCurrentPosition(
+                (pos) => setMarker(pos.coords.latitude, pos.coords.longitude),
+                (err) => alert("Error: " + err.message)
+            );
+        });
+
+        document.getElementById('clearMarkerBtn')?.addEventListener('click', () => clearMarker());
+
+        const themeToggle = document.getElementById('themeToggle');
+        if (themeToggle) {
+            themeToggle.addEventListener('click', () => {
+                toggleTheme();
+                const icon = themeToggle.querySelector('i');
+                if (theme === 'dark') {
+                    icon.className = 'fas fa-sun';
+                } else {
+                    icon.className = 'fas fa-moon';
+                }
+            });
+        }
+
+        const sistemaSelect = document.getElementById('sistemaProductivo');
+        const sistemaOtro = document.getElementById('sistemaProductivoOtro');
+        sistemaSelect.addEventListener('change', () => toggleOtro(sistemaSelect, sistemaOtro, 'Otro'));
+        const variedadSelect = document.getElementById('variedadSelect');
+        const variedadOtro = document.getElementById('variedadOtro');
+        variedadSelect.addEventListener('change', () => toggleOtro(variedadSelect, variedadOtro, 'Otro'));
+        const riegoSelect = document.getElementById('riego');
+        const riegoOtro = document.getElementById('riegoOtro');
+        riegoSelect.addEventListener('change', () => toggleOtro(riegoSelect, riegoOtro, 'Otro'));
+        function toggleOtro(select, input, triggerValue) {
+            if (select.value === triggerValue) input.classList.remove('hidden');
+            else input.classList.add('hidden');
+        }
+
+        const form = document.getElementById('proForm');
+        form.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            if (!currentUser) return alert("Sesión no activa");
+            const coordsVal = document.getElementById('coords').value;
+            if (!coordsVal) return alert("📍 Selecciona una ubicación en el mapa o usa GPS");
+            const [lat, lng] = coordsVal.split(',').map(Number);
+            
+            let sistemaProd = sistemaSelect.value;
+            if (sistemaProd === 'Otro') sistemaProd = sistemaOtro.value || "Otro";
+            let variedad = variedadSelect.value;
+            if (variedad === 'Otro') variedad = variedadOtro.value || "Otro";
+            let riego = riegoSelect.value;
+            if (riego === 'Otro') riego = riegoOtro.value || "Otro";
+            
+            const plagasSeleccionadas = Array.from(document.querySelectorAll('input[name="plagas"]:checked')).map(cb => cb.value);
+            const otraPlaga = document.getElementById('otraPlaga').value.trim();
+            if (otraPlaga) plagasSeleccionadas.push(otraPlaga);
+            
+            const enfermedadesSeleccionadas = Array.from(document.querySelectorAll('input[name="enfermedades"]:checked')).map(cb => cb.value);
+            const otraEnfermedad = document.getElementById('otraEnfermedad').value.trim();
+            if (otraEnfermedad) enfermedadesSeleccionadas.push(otraEnfermedad);
+            
+            const analisisSuelo = document.querySelector('input[name="analisisSuelo"]:checked')?.value === 'si' ? true : false;
+            
+            const payload = {
+                productor: document.getElementById('productor').value,
+                ci: document.getElementById('ci').value || null,
+                fecha: document.getElementById('fecha').value,
+                fecha_siembra: document.getElementById('fechaSiembra').value || null,
+                lat, lng,
+                sistema_productivo: sistemaProd,
+                variedad,
+                fenologia: document.getElementById('fenologia').value,
+                riego,
+                num_plantas: parseInt(document.getElementById('numPlantas').value) || null,
+                marco_plantacion: document.getElementById('marcoPlantacion').value || null,
+                tipo_suelo: document.getElementById('tipoSuelo').value,
+                ph: parseFloat(document.getElementById('ph').value) || null,
+                materia_organica: parseFloat(document.getElementById('materiaOrganica').value) || null,
+                area: parseFloat(document.getElementById('area').value) || null,
+                rendimiento_estimado: parseFloat(document.getElementById('rendimiento').value) || null,
+                plagas: plagasSeleccionadas,
+                enfermedades: enfermedadesSeleccionadas,
+                control_aplicado: document.getElementById('controlAplicado').value,
+                notas: document.getElementById('notas').value,
+                analisis_suelo: analisisSuelo,
+                user_id: currentUser.id
+            };
+            
+            const recomendacion = generarRecomendacionPro(payload);
+            payload.recomendacion = recomendacion;
+            document.getElementById('iaRecomendationBox').innerHTML = `🤖 <strong>IA Agronómica:</strong><br>${recomendacion.replace(/\n/g,'<br>')}`;
+            
+            const { error } = await supabaseClient.from('tomate_registros').insert([payload]);
+            if (error) {
+                alert(translateSupabaseError(error.message));
+            } else {
+                alert("✅ Registro guardado exitosamente");
+                form.reset();
+                clearMarker();
+                document.getElementById('fecha').value = new Date().toISOString().slice(0,10);
+                document.querySelector('input[name="analisisSuelo"][value="no"]').checked = true;
+                loadUserRegistros();
+            }
+        });
+
+        document.getElementById('logoutBtnPro')?.addEventListener('click', async () => {
+            await supabaseClient.auth.signOut();
+            currentUser = null;
+            renderApp();
+        });
+        document.getElementById('refreshDataBtn')?.addEventListener('click', () => loadUserRegistros());
+
+        const chartVarSelect = document.getElementById('chartVariable');
+        const chartTypeSelect = document.getElementById('chartType');
+        const updateChart = () => {
+            updateMiniChart(registrosData, chartVarSelect.value, chartTypeSelect.value);
+        };
+        chartVarSelect.addEventListener('change', updateChart);
+        chartTypeSelect.addEventListener('change', updateChart);
+
+        document.getElementById('exportExcelBtn')?.addEventListener('click', () => exportToExcel(registrosData));
+        document.getElementById('exportShapefileBtn')?.addEventListener('click', () => exportToShapefile(registrosData));
+
+        const modal = document.getElementById('fincaModal');
+        const closeModal = () => modal.classList.remove('active');
+        document.getElementById('closeModalBtn').addEventListener('click', closeModal);
+        modal.addEventListener('click', (e) => { if (e.target === modal) closeModal(); });
+
+        const batchModal = document.getElementById('batchModal');
+        const closeBatchModal = () => batchModal.classList.remove('active');
+        document.getElementById('closeBatchModalBtn').addEventListener('click', closeBatchModal);
+        batchModal.addEventListener('click', (e) => { if (e.target === batchModal) closeBatchModal(); });
+        document.getElementById('batchUploadBtn').addEventListener('click', () => {
+            batchModal.classList.add('active');
+        });
+        document.getElementById('uploadCsvBtn').addEventListener('click', async () => {
+            const fileInput = document.getElementById('csvFile');
+            const file = fileInput.files[0];
+            if (!file) {
+                alert("Selecciona un archivo CSV");
+                return;
+            }
+            Papa.parse(file, {
+                header: true,
+                skipEmptyLines: true,
+                complete: async (results) => {
+                    const data = results.data;
+                    const errors = [];
+                    const toInsert = [];
+                    for (const row of data) {
+                        try {
+                            if (!row.productor || !row.lat || !row.lng) {
+                                errors.push(`Fila ${data.indexOf(row)+2}: faltan campos obligatorios (productor, lat, lng)`);
+                                continue;
+                            }
+                            const lat = parseFloat(row.lat);
+                            const lng = parseFloat(row.lng);
+                            if (isNaN(lat) || isNaN(lng)) {
+                                errors.push(`Fila ${data.indexOf(row)+2}: lat/lng inválidos`);
+                                continue;
+                            }
+                            const plagas = row.plagas ? row.plagas.split(';').map(p => p.trim()).filter(p => p) : [];
+                            const enfermedades = row.enfermedades ? row.enfermedades.split(';').map(e => e.trim()).filter(e => e) : [];
+                            const analisisSuelo = row.analisis_suelo === 'si' ? true : false;
+                            const payload = {
+                                productor: row.productor,
+                                ci: row.ci || null,
+                                fecha: row.fecha || null,
+                                fecha_siembra: row.fecha_siembra || null,
+                                lat, lng,
+                                sistema_productivo: row.sistema_productivo || null,
+                                variedad: row.variedad || null,
+                                fenologia: row.fenologia || null,
+                                riego: row.riego || null,
+                                num_plantas: row.num_plantas ? parseInt(row.num_plantas) : null,
+                                marco_plantacion: row.marco_plantacion || null,
+                                tipo_suelo: row.tipo_suelo || null,
+                                ph: row.ph ? parseFloat(row.ph) : null,
+                                materia_organica: row.materia_organica ? parseFloat(row.materia_organica) : null,
+                                area: row.area ? parseFloat(row.area) : null,
+                                rendimiento_estimado: row.rendimiento_estimado ? parseFloat(row.rendimiento_estimado) : null,
+                                plagas,
+                                enfermedades,
+                                control_aplicado: row.control_aplicado || null,
+                                notas: row.notas || null,
+                                analisis_suelo: analisisSuelo,
+                                user_id: currentUser.id,
+                                recomendacion: generarRecomendacionPro(payload)
+                            };
+                            toInsert.push(payload);
+                        } catch (err) {
+                            errors.push(`Fila ${data.indexOf(row)+2}: error al procesar - ${err.message}`);
+                        }
+                    }
+                    if (toInsert.length === 0) {
+                        document.getElementById('batchResult').innerHTML = `<p style="color:var(--accent-gold);">No hay registros válidos para insertar. ${errors.join('<br>')}</p>`;
+                        return;
+                    }
+                    const { error } = await supabaseClient.from('tomate_registros').insert(toInsert);
+                    if (error) {
+                        document.getElementById('batchResult').innerHTML = `<p style="color:var(--accent-red);">Error en inserción masiva: ${translateSupabaseError(error.message)}</p>`;
+                    } else {
+                        document.getElementById('batchResult').innerHTML = `<p style="color:var(--accent-green);">✅ ${toInsert.length} registros insertados correctamente. ${errors.length ? 'Errores: '+errors.join('<br>') : ''}</p>`;
+                        closeBatchModal();
+                        loadUserRegistros();
+                    }
+                },
+                error: (err) => {
+                    document.getElementById('batchResult').innerHTML = `<p style="color:var(--accent-red);">Error al leer CSV: ${err.message}</p>`;
+                }
+            });
+        });
+
+        const editModal = document.getElementById('editModal');
+        const closeEditModal = () => editModal.classList.remove('active');
+        document.getElementById('closeEditModalBtn').addEventListener('click', closeEditModal);
+        editModal.addEventListener('click', (e) => { if (e.target === editModal) closeEditModal(); });
+
+        window.openEditModal = async (id) => {
+            const registro = registrosData.find(r => r.id === id);
+            if (!registro) return;
+            const modalBody = document.getElementById('editModalBody');
+            modalBody.innerHTML = `
+                <form id="editForm">
+                    <div class="form-grid">
+                        <div class="full-width"><label>Productor / Lote *</label><input type="text" id="edit_productor" value="${escapeHtml(registro.productor || '')}" required></div>
+                        <div><label>Cédula de Identidad (CI)</label><input type="text" id="edit_ci" value="${escapeHtml(registro.ci || '')}"></div>
+                        <div><label>Fecha monitoreo</label><input type="date" id="edit_fecha" value="${registro.fecha || ''}"></div>
+                        <div><label>Fecha siembra</label><input type="date" id="edit_fechaSiembra" value="${registro.fecha_siembra || ''}"></div>
+                    </div>
+                    <label>Geolocalización (lat,lng)</label>
+                    <div style="display: flex; gap: 10px;">
+                        <input type="text" id="edit_lat" placeholder="Latitud" value="${registro.lat || ''}" style="flex:1;">
+                        <input type="text" id="edit_lng" placeholder="Longitud" value="${registro.lng || ''}" style="flex:1;">
+                    </div>
+                    <label>Sistema Productivo</label>
+                    <select id="edit_sistemaProductivo">${sistemaProductivoList.map(s => `<option value="${s}" ${registro.sistema_productivo === s ? 'selected' : ''}>${s}</option>`).join('')}</select>
+                    <input type="text" id="edit_sistemaProductivoOtro" class="hidden" placeholder="Especifique otro sistema">
+                    
+                    <label>Variedad</label>
+                    <select id="edit_variedadSelect">${variedadesList.map(v => `<option value="${v}" ${registro.variedad === v ? 'selected' : ''}>${v}</option>`).join('')}</select>
+                    <input type="text" id="edit_variedadOtro" class="hidden" placeholder="Especifique variedad">
+                    
+                    <label>Fenología</label>
+                    <select id="edit_fenologia">${fenologiaList.map(f => `<option value="${f}" ${registro.fenologia === f ? 'selected' : ''}>${f}</option>`).join('')}</select>
+                    
+                    <label>Sistema de riego</label>
+                    <select id="edit_riego">${riegoList.map(r => `<option value="${r}" ${registro.riego === r ? 'selected' : ''}>${r}</option>`).join('')}</select>
+                    <input type="text" id="edit_riegoOtro" class="hidden" placeholder="Especifique otro riego">
+                    
+                    <div class="form-grid">
+                        <div><label>N° plantas (estimado)</label><input type="number" id="edit_numPlantas" value="${registro.num_plantas || ''}"></div>
+                        <div><label>Marco plantación (m)</label><input type="text" id="edit_marcoPlantacion" value="${escapeHtml(registro.marco_plantacion || '')}"></div>
+                        <div><label>Tipo de suelo</label><select id="edit_tipoSuelo">${tipoSueloList.map(s => `<option value="${s}" ${registro.tipo_suelo === s ? 'selected' : ''}>${s}</option>`).join('')}</select></div>
+                        <div><label>pH</label><input type="number" id="edit_ph" step="0.1" value="${registro.ph || ''}"></div>
+                        <div><label>Materia orgánica (%)</label><input type="number" id="edit_materiaOrganica" step="0.1" value="${registro.materia_organica || ''}"></div>
+                        <div><label>Área (m²)</label><input type="number" id="edit_area" value="${registro.area || ''}"></div>
+                        <div><label>Rendimiento estimado (kg)</label><input type="number" id="edit_rendimiento" value="${registro.rendimiento_estimado || ''}"></div>
+                    </div>
+                    
+                    <label>Análisis de suelo</label>
+                    <div style="display: flex; gap: 20px;">
+                        <label><input type="radio" name="edit_analisisSuelo" value="si" ${registro.analisis_suelo ? 'checked' : ''}> Sí</label>
+                        <label><input type="radio" name="edit_analisisSuelo" value="no" ${!registro.analisis_suelo ? 'checked' : ''}> No</label>
+                    </div>
+                    
+                    <label>Plagas detectadas</label>
+                    <div class="checkbox-group" id="edit_plagasGroup">${plagasCheck.map(p => {
+                        const isChecked = registro.plagas && registro.plagas.includes(p);
+                        return `<label><input type="checkbox" name="edit_plagas" value="${p}" ${isChecked ? 'checked' : ''}> ${p}</label>`;
+                    }).join('')}</div>
+                    <input type="text" id="edit_otraPlaga" placeholder="Otra plaga (especificar)" class="full-width" value="${registro.plagas ? registro.plagas.filter(p => !plagasCheck.includes(p)).join(', ') : ''}">
+                    
+                    <label>Enfermedades detectadas</label>
+                    <div class="checkbox-group" id="edit_enfermedadesGroup">${enfermedadesCheck.map(e => {
+                        const isChecked = registro.enfermedades && registro.enfermedades.includes(e);
+                        return `<label><input type="checkbox" name="edit_enfermedades" value="${e}" ${isChecked ? 'checked' : ''}> ${e}</label>`;
+                    }).join('')}</div>
+                    <input type="text" id="edit_otraEnfermedad" placeholder="Otra enfermedad (especificar)" class="full-width" value="${registro.enfermedades ? registro.enfermedades.filter(e => !enfermedadesCheck.includes(e)).join(', ') : ''}">
+                    
+                    <label>Control aplicado</label>
+                    <textarea id="edit_controlAplicado" rows="2">${escapeHtml(registro.control_aplicado || '')}</textarea>
+                    
+                    <label>Notas técnicas</label>
+                    <textarea id="edit_notas" rows="2">${escapeHtml(registro.notas || '')}</textarea>
+                    
+                    <button type="submit" id="saveEditBtn">Guardar cambios</button>
+                </form>
+            `;
+            
+            const editSistemaSelect = document.getElementById('edit_sistemaProductivo');
+            const editSistemaOtro = document.getElementById('edit_sistemaProductivoOtro');
+            const editVariedadSelect = document.getElementById('edit_variedadSelect');
+            const editVariedadOtro = document.getElementById('edit_variedadOtro');
+            const editRiegoSelect = document.getElementById('edit_riego');
+            const editRiegoOtro = document.getElementById('edit_riegoOtro');
+            
+            const toggleEditOtro = (select, input, triggerValue) => {
+                if (select.value === triggerValue) input.classList.remove('hidden');
+                else input.classList.add('hidden');
+            };
+            editSistemaSelect.addEventListener('change', () => toggleEditOtro(editSistemaSelect, editSistemaOtro, 'Otro'));
+            editVariedadSelect.addEventListener('change', () => toggleEditOtro(editVariedadSelect, editVariedadOtro, 'Otro'));
+            editRiegoSelect.addEventListener('change', () => toggleEditOtro(editRiegoSelect, editRiegoOtro, 'Otro'));
+            
+            if (registro.sistema_productivo && !sistemaProductivoList.includes(registro.sistema_productivo)) {
+                editSistemaSelect.value = 'Otro';
+                editSistemaOtro.value = registro.sistema_productivo;
+                editSistemaOtro.classList.remove('hidden');
+            }
+            if (registro.variedad && !variedadesList.includes(registro.variedad)) {
+                editVariedadSelect.value = 'Otro';
+                editVariedadOtro.value = registro.variedad;
+                editVariedadOtro.classList.remove('hidden');
+            }
+            if (registro.riego && !riegoList.includes(registro.riego)) {
+                editRiegoSelect.value = 'Otro';
+                editRiegoOtro.value = registro.riego;
+                editRiegoOtro.classList.remove('hidden');
+            }
+            
+            const editForm = document.getElementById('editForm');
+            editForm.addEventListener('submit', async (e) => {
+                e.preventDefault();
+                const lat = parseFloat(document.getElementById('edit_lat').value);
+                const lng = parseFloat(document.getElementById('edit_lng').value);
+                if (isNaN(lat) || isNaN(lng)) {
+                    alert("Coordenadas inválidas");
+                    return;
+                }
+                let sistemaProd = editSistemaSelect.value;
+                if (sistemaProd === 'Otro') sistemaProd = editSistemaOtro.value || "Otro";
+                let variedad = editVariedadSelect.value;
+                if (variedad === 'Otro') variedad = editVariedadOtro.value || "Otro";
+                let riego = editRiegoSelect.value;
+                if (riego === 'Otro') riego = editRiegoOtro.value || "Otro";
+                
+                const plagasSeleccionadas = Array.from(document.querySelectorAll('input[name="edit_plagas"]:checked')).map(cb => cb.value);
+                const otraPlaga = document.getElementById('edit_otraPlaga').value.trim();
+                if (otraPlaga) {
+                    plagasSeleccionadas.push(...otraPlaga.split(',').map(p => p.trim()));
+                }
+                const enfermedadesSeleccionadas = Array.from(document.querySelectorAll('input[name="edit_enfermedades"]:checked')).map(cb => cb.value);
+                const otraEnfermedad = document.getElementById('edit_otraEnfermedad').value.trim();
+                if (otraEnfermedad) {
+                    enfermedadesSeleccionadas.push(...otraEnfermedad.split(',').map(e => e.trim()));
+                }
+                
+                const analisisSuelo = document.querySelector('input[name="edit_analisisSuelo"]:checked')?.value === 'si' ? true : false;
+                
+                const updatedData = {
+                    productor: document.getElementById('edit_productor').value,
+                    ci: document.getElementById('edit_ci').value || null,
+                    fecha: document.getElementById('edit_fecha').value,
+                    fecha_siembra: document.getElementById('edit_fechaSiembra').value || null,
+                    lat, lng,
+                    sistema_productivo: sistemaProd,
+                    variedad,
+                    fenologia: document.getElementById('edit_fenologia').value,
+                    riego,
+                    num_plantas: parseInt(document.getElementById('edit_numPlantas').value) || null,
+                    marco_plantacion: document.getElementById('edit_marcoPlantacion').value || null,
+                    tipo_suelo: document.getElementById('edit_tipoSuelo').value,
+                    ph: parseFloat(document.getElementById('edit_ph').value) || null,
+                    materia_organica: parseFloat(document.getElementById('edit_materiaOrganica').value) || null,
+                    area: parseFloat(document.getElementById('edit_area').value) || null,
+                    rendimiento_estimado: parseFloat(document.getElementById('edit_rendimiento').value) || null,
+                    plagas: plagasSeleccionadas,
+                    enfermedades: enfermedadesSeleccionadas,
+                    control_aplicado: document.getElementById('edit_controlAplicado').value,
+                    notas: document.getElementById('edit_notas').value,
+                    analisis_suelo: analisisSuelo
+                };
+                updatedData.recomendacion = generarRecomendacionPro(updatedData);
+                
+                const { error } = await supabaseClient.from('tomate_registros').update(updatedData).eq('id', id);
+                if (error) {
+                    alert(translateSupabaseError(error.message));
+                } else {
+                    alert("✅ Registro actualizado exitosamente");
+                    closeEditModal();
+                    loadUserRegistros();
+                }
+            });
+            
+            editModal.classList.add('active');
+        };
+
+        window.openProducerModal = (productorName) => {
+            const registrosFinca = registrosData.filter(r => r.productor === productorName);
+            if (registrosFinca.length === 0) return;
+            const modalBody = document.getElementById('modalBody');
+            modalBody.innerHTML = `<h4>Finca: ${productorName}</h4>`;
+            registrosFinca.forEach(reg => {
+                const fecha = reg.fecha || 'Sin fecha';
+                modalBody.innerHTML += `
+                    <div class="ficha-productor">
+                        <h4><i class="far fa-calendar-alt"></i> Monitoreo del ${fecha}</h4>
+                        <p><strong>Cédula:</strong> ${reg.ci || 'No registrada'}</p>
+                        <p><strong>Sistema productivo:</strong> ${reg.sistema_productivo || '-'}</p>
+                        <p><strong>Variedad:</strong> ${reg.variedad || '-'}</p>
+                        <p><strong>Fenología:</strong> ${reg.fenologia || '-'}</p>
+                        <p><strong>Riego:</strong> ${reg.riego || '-'}</p>
+                        <p><strong>Área:</strong> ${reg.area ? reg.area + ' m²' : '-'}</p>
+                        <p><strong>Rendimiento estimado:</strong> ${reg.rendimiento_estimado ? reg.rendimiento_estimado + ' kg' : '-'}</p>
+                        <p><strong>Análisis de suelo:</strong> ${reg.analisis_suelo ? 'Sí' : 'No'}</p>
+                        <p><strong>Plagas:</strong> ${reg.plagas ? reg.plagas.join(', ') : 'Ninguna'}</p>
+                        <p><strong>Enfermedades:</strong> ${reg.enfermedades ? reg.enfermedades.join(', ') : 'Ninguna'}</p>
+                        <p><strong>Control aplicado:</strong> ${reg.control_aplicado || '-'}</p>
+                        <p><strong>Notas:</strong> ${reg.notas || '-'}</p>
+                        <p><strong>Recomendación IA:</strong> ${reg.recomendacion || '-'}</p>
+                        <hr>
+                    </div>
+                `;
+            });
+            modal.classList.add('active');
+        };
+
+        loadUserRegistros();
+    }
+
+    function escapeHtml(str) {
+        if (!str) return '';
+        return str.replace(/[&<>]/g, function(m) {
+            if (m === '&') return '&amp;';
+            if (m === '<') return '&lt;';
+            if (m === '>') return '&gt;';
+            return m;
+        });
+    }
+
+    function generarRecomendacionPro(data) {
+        let recs = [];
+        const { fenologia, riego, variedad, plagas, enfermedades, tipo_suelo, ph, analisis_suelo } = data;
+        if (fenologia && fenologia.includes('Floración')) recs.push("🌼 Aplicar fósforo y boro. Evitar estrés hídrico.");
+        if (fenologia && fenologia.includes('Desarrollo de Fruto')) recs.push("🍅 Aumentar potasio y calcio para calidad del fruto.");
+        if (riego === 'Manual') recs.push("⚠️ Considere implementar riego por goteo para eficiencia hídrica.");
+        if (riego === 'Aspersión') recs.push("💦 Evite mojar el follaje en horas de sol para prevenir enfermedades.");
+        if (variedad && variedad.toLowerCase().includes('cherry')) recs.push("🍒 Las variedades Cherry requieren tutoreo alto y podas regulares.");
+        if (plagas && plagas.length) recs.push(`🐛 Plagas detectadas: ${plagas.join(', ')}. Monitorear y aplicar control integrado.`);
+        if (enfermedades && enfermedades.length) recs.push(`🍄 Enfermedades: ${enfermedades.join(', ')}. Rotar fungicidas y mejorar ventilación.`);
+        if (tipo_suelo && tipo_suelo.includes('Arcilloso')) recs.push("🏞️ Suelo arcilloso: mejore drenaje con enmiendas orgánicas.");
+        if (ph && (ph < 5.5 || ph > 7.5)) recs.push("⚖️ El pH óptimo para tomate es 5.5-7.5. Considere corrección.");
+        if (analisis_suelo === false) recs.push("📊 Recomendamos realizar un análisis de suelo para ajustar fertilización.");
+        if (recs.length === 0) recs.push("✅ Buenas prácticas. Continúe con monitoreo semanal.");
+        return recs.slice(0, 6).join("\n");
+    }
+
+    async function loadUserRegistros() {
+        if (!supabaseClient || !currentUser) return;
+        const { data, error } = await supabaseClient
+            .from('tomate_registros')
+            .select('*')
+            .eq('user_id', currentUser.id)
+            .order('created_at', { ascending: false });
+        if (error) {
+            document.getElementById('registrosList').innerHTML = `<div class="empty-state">⚠️ Error: ${translateSupabaseError(error.message)}</div>`;
+            return;
+        }
+        registrosData = data || [];
+        renderRegistrosList(registrosData);
+        const chartVar = document.getElementById('chartVariable')?.value || 'fenologia';
+        const chartType = document.getElementById('chartType')?.value || 'pie';
+        updateMiniChart(registrosData, chartVar, chartType);
+        updateMapMarkers(registrosData);
+    }
+
+    function updateMapMarkers(registros) {
+        if (!markersLayer) return;
+        markersLayer.clearLayers();
+        registros.forEach(reg => {
+            if (reg.lat && reg.lng) {
+                const marker = L.marker([reg.lat, reg.lng]);
+                const popupContent = `
+                    <b>${reg.productor || 'Productor'}</b><br>
+                    ${reg.ci ? `CI: ${reg.ci}<br>` : ''}
+                    <button onclick="window.openProducerModal('${reg.productor}')" style="background:#2c7a4a; color:white; border:none; padding:5px 10px; border-radius:20px; margin-top:5px; cursor:pointer;">
+                        Ver finca
+                    </button>
+                `;
+                marker.bindPopup(popupContent);
+                markersLayer.addLayer(marker);
+            }
+        });
+    }
+
+    function renderRegistrosList(registros) {
+        const container = document.getElementById('registrosList');
+        if (!container) return;
+        if (!registros.length) {
+            container.innerHTML = `<div class="empty-state"><i class="fas fa-tomato"></i> No hay registros. Crea uno nuevo.</div>`;
+            return;
+        }
+        let html = '';
+        registros.slice(0, 12).forEach(reg => {
+            const fecha = reg.fecha || 'Sin fecha';
+            const variedad = reg.variedad || 'N/A';
+            const ci = reg.ci ? `CI: ${reg.ci}` : '';
+            html += `
+                <div class="registro-item">
+                    <div class="registro-header">
+                        <span><i class="fas fa-tractor"></i> ${reg.productor || 'Lote'} ${ci ? `(${ci})` : ''}</span>
+                        <span class="badge-variedad">${variedad}</span>
+                    </div>
+                    <div style="display:flex; flex-wrap:wrap; gap:6px; font-size:0.8rem; margin-bottom:6px;">
+                        <span><i class="far fa-calendar-alt"></i> ${fecha}</span>
+                        <span><i class="fas fa-tint"></i> ${reg.riego || '-'}</span>
+                        <span><i class="fas fa-leaf"></i> ${reg.fenologia ? reg.fenologia.substring(0,20) : '-'}</span>
+                        <span><i class="fas fa-flask"></i> ${reg.analisis_suelo ? 'Sí' : 'No'}</span>
+                    </div>
+                    <div class="acciones">
+                        <i class="fas fa-map-marker-alt icon-map" onclick="verEnMapa(${reg.lat}, ${reg.lng})" title="Ver en mapa"></i>
+                        <i class="fas fa-eye icon-view" onclick="window.openProducerModal('${reg.productor}')" title="Ver finca"></i>
+                        <i class="fas fa-edit icon-edit" onclick="window.openEditModal('${reg.id}')" title="Editar"></i>
+                        <i class="fas fa-trash-alt icon-delete" onclick="eliminarRegistro('${reg.id}')" title="Eliminar"></i>
+                    </div>
+                </div>
+            `;
+        });
+        container.innerHTML = html;
+    }
+
+    window.verEnMapa = (lat, lng) => {
+        if (currentMap && lat && lng) {
+            currentMap.setView([lat, lng], 16);
+            if (currentMarker) currentMap.removeLayer(currentMarker);
+            currentMarker = L.marker([lat, lng]).addTo(currentMap);
+            document.getElementById('coords').value = `${lat},${lng}`;
+        } else {
+            alert("No se puede centrar el mapa");
+        }
+    };
+
+    window.eliminarRegistro = async (id) => {
+        if (!confirm("¿Eliminar este registro permanentemente?")) return;
+        const { error } = await supabaseClient.from('tomate_registros').delete().eq('id', id).eq('user_id', currentUser.id);
+        if (error) alert(translateSupabaseError(error.message));
+        else loadUserRegistros();
+    };
+
+    function updateMiniChart(registros, variable, chartType = 'pie') {
+        const canvas = document.getElementById('miniChart');
+        if (!canvas) return;
+        if (chartInstance) chartInstance.destroy();
+        if (!registros.length) {
+            canvas.style.display = 'none';
+            return;
+        }
+        canvas.style.display = 'block';
+        const counts = {};
+        registros.forEach(r => {
+            let val = r[variable] || 'No especificado';
+            if (variable === 'analisis_suelo') val = val ? 'Sí' : 'No';
+            counts[val] = (counts[val] || 0) + 1;
+        });
+        const labels = Object.keys(counts);
+        const data = labels.map(l => counts[l]);
+        const ctx = canvas.getContext('2d');
+        const textColor = getComputedStyle(document.body).getPropertyValue('--text-primary');
+        
+        // Generar colores para cada barra usando la paleta
+        const barColors = data.map((_, idx) => colorPalette[idx % colorPalette.length]);
+        
+        if (chartType === 'pie') {
+            chartInstance = new Chart(ctx, {
+                type: 'pie',
+                data: {
+                    labels: labels,
+                    datasets: [{
+                        data: data,
+                        backgroundColor: colorPalette.slice(0, labels.length),
+                        borderWidth: 0
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: true,
+                    plugins: {
+                        legend: { 
+                            position: 'bottom', 
+                            labels: { font: { size: 11, color: textColor } }
+                        },
+                        tooltip: { bodyFont: { size: 11 } }
+                    }
+                }
+            });
+        } else if (chartType === 'bar') {
+            chartInstance = new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: labels,
+                    datasets: [{
+                        label: 'Cantidad de registros',
+                        data: data,
+                        backgroundColor: barColors,
+                        borderColor: barColors.map(c => c),
+                        borderWidth: 1,
+                        borderRadius: 8
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: true,
+                    plugins: {
+                        legend: { 
+                            position: 'top', 
+                            labels: { font: { size: 11, color: textColor } }
+                        },
+                        tooltip: { bodyFont: { size: 11 } }
+                    },
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            ticks: { stepSize: 1, color: textColor },
+                            grid: { color: 'rgba(255,255,255,0.1)' }
+                        },
+                        x: {
+                            ticks: { color: textColor, maxRotation: 45, minRotation: 30 },
+                            grid: { display: false }
+                        }
+                    }
+                }
+            });
+        }
+    }
+
+    function exportToExcel(registros) {
+        if (!registros.length) {
+            alert("No hay datos para exportar");
+            return;
+        }
+        const worksheetData = registros.map(reg => ({
+            'Productor': reg.productor,
+            'CI': reg.ci,
+            'Fecha Monitoreo': reg.fecha,
+            'Fecha Siembra': reg.fecha_siembra,
+            'Latitud': reg.lat,
+            'Longitud': reg.lng,
+            'Sistema Productivo': reg.sistema_productivo,
+            'Variedad': reg.variedad,
+            'Fenología': reg.fenologia,
+            'Riego': reg.riego,
+            'N° Plantas': reg.num_plantas,
+            'Marco Plantación': reg.marco_plantacion,
+            'Tipo Suelo': reg.tipo_suelo,
+            'pH': reg.ph,
+            'Materia Orgánica (%)': reg.materia_organica,
+            'Área (m²)': reg.area,
+            'Rendimiento (kg)': reg.rendimiento_estimado,
+            'Análisis Suelo': reg.analisis_suelo ? 'Sí' : 'No',
+            'Plagas': reg.plagas ? reg.plagas.join('; ') : '',
+            'Enfermedades': reg.enfermedades ? reg.enfermedades.join('; ') : '',
+            'Control Aplicado': reg.control_aplicado,
+            'Notas': reg.notas,
+            'Recomendación IA': reg.recomendacion,
+            'Fecha Registro': reg.created_at
+        }));
+        const ws = XLSX.utils.json_to_sheet(worksheetData);
+        const wb = XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(wb, ws, 'Monitoreos');
+        XLSX.writeFile(wb, `tomate_pro_${new Date().toISOString().slice(0,19)}.xlsx`);
+    }
+
+    function exportToShapefile(registros) {
+        if (!registros.length) {
+            alert("No hay datos para exportar a shapefile");
+            return;
+        }
+        const validPoints = registros.filter(r => r.lat && r.lng && !isNaN(r.lat) && !isNaN(r.lng));
+        if (!validPoints.length) {
+            alert("No hay puntos válidos con coordenadas para exportar");
+            return;
+        }
+        const features = validPoints.map(reg => {
+            const props = {
+                productor: (reg.productor || '').substring(0, 80),
+                ci: (reg.ci || '').substring(0, 20),
+                fecha: (reg.fecha || '').substring(0, 10),
+                fecha_siembra: (reg.fecha_siembra || '').substring(0, 10),
+                sistema_productivo: (reg.sistema_productivo || '').substring(0, 50),
+                variedad: (reg.variedad || '').substring(0, 50),
+                fenologia: (reg.fenologia || '').substring(0, 60),
+                riego: (reg.riego || '').substring(0, 30),
+                num_plantas: reg.num_plantas || 0,
+                marco_plantacion: (reg.marco_plantacion || '').substring(0, 30),
+                tipo_suelo: (reg.tipo_suelo || '').substring(0, 30),
+                ph: reg.ph || 0,
+                materia_organica: reg.materia_organica || 0,
+                area: reg.area || 0,
+                rendimiento: reg.rendimiento_estimado || 0,
+                analisis_suelo: reg.analisis_suelo ? 'Si' : 'No',
+                plagas: (reg.plagas ? reg.plagas.join('; ') : '').substring(0, 200),
+                enfermedades: (reg.enfermedades ? reg.enfermedades.join('; ') : '').substring(0, 200),
+                control: (reg.control_aplicado || '').substring(0, 200),
+                notas: (reg.notas || '').substring(0, 200)
+            };
+            return {
+                type: "Feature",
+                geometry: {
+                    type: "Point",
+                    coordinates: [reg.lng, reg.lat]
+                },
+                properties: props
+            };
+        });
+        const geojson = {
+            type: "FeatureCollection",
+            features: features
+        };
+        if (typeof shpwrite === 'undefined') {
+            alert("La librería para shapefile no está cargada. Recarga la página.");
+            return;
+        }
+        try {
+            shpwrite.download(geojson, undefined, {
+                outputType: 'blob'
+            }).then(blob => {
+                saveAs(blob, `tomate_pro_${new Date().toISOString().slice(0,19)}.zip`);
+            }).catch(err => {
+                console.error(err);
+                alert("Error al generar shapefile: " + (err.message || "Error desconocido"));
+            });
+        } catch (err) {
+            console.error(err);
+            alert("Error al exportar: " + err.message);
+        }
+    }
+
+    renderApp();
+</script>
+
+
+</body>
+</html>
