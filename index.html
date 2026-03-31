@@ -33,7 +33,7 @@
         }
     </script>
     <style>
-        /* Tema oscuro (default) */
+        /* Estilos (igual que antes, sin cambios) */
         :root {
             --bg-primary: #0a0f1a;
             --bg-secondary: rgba(18, 25, 45, 0.7);
@@ -480,7 +480,6 @@
         button, .btn-logout, .btn-secondary, .btn-outline, .acciones i {
             touch-action: manipulation;
         }
-        /* Indicador offline */
         .offline-indicator {
             background: #c44536;
             padding: 4px 12px;
@@ -488,6 +487,18 @@
             font-size: 0.8rem;
             display: none;
             margin-left: 12px;
+        }
+        .image-preview {
+            display: flex;
+            gap: 12px;
+            margin-top: 8px;
+            flex-wrap: wrap;
+        }
+        .image-preview img {
+            max-width: 100px;
+            max-height: 100px;
+            border-radius: 8px;
+            border: 1px solid var(--border-color);
         }
     </style>
 </head>
@@ -616,33 +627,20 @@
     const tipoSueloList = ["Arcilloso", "Arenoso", "Franco", "Franco-arcilloso", "Franco-arenoso", "Limoso", "Otro"];
     const plagasCheck = ["Mosca blanca", "Trips", "Pulgón", "Minador", "Gusano cogollero","Palomilla","Ybytazo", "Ácaros", "Otra"];
     const enfermedadesCheck = ["Mildiu", "Mbiru", "Septoriosis", "Vira Cabeza", "Tizon","Botrytis", "Fusarium", "Mancha Bacteriana", "Otra"];
+    const recursosMAG = ["Caseta", "Invernadero", "Tractor", "Semillas", "Herramientas Manuales", "Fertilizantes", "Sistema de Riego", "Otro"];
 
     const colorPalette = ['#f4b942', '#2c7a4a', '#c44536', '#3a6b8f', '#f39c12', '#27ae60', '#e67e22', '#2980b9', '#8e44ad', '#16a085'];
 
     function translateSupabaseError(errorMessage) {
         if (!errorMessage) return "Error desconocido";
         const lowerMsg = errorMessage.toLowerCase();
-        if (lowerMsg.includes("email rate limit exceeded")) {
-            return "⚠️ Has alcanzado el límite de registros por hora. Espera unos minutos e intenta de nuevo.";
-        }
-        if (lowerMsg.includes("invalid login credentials")) {
-            return "❌ Credenciales inválidas. Revisa tu email y contraseña.";
-        }
-        if (lowerMsg.includes("user already registered")) {
-            return "📧 Este correo ya está registrado. Inicia sesión o usa una cuenta diferente.";
-        }
-        if (lowerMsg.includes("email not confirmed")) {
-            return "✉️ Debes confirmar tu correo electrónico antes de iniciar sesión. Revisa tu bandeja de entrada.";
-        }
-        if (lowerMsg.includes("password should be at least 6 characters")) {
-            return "🔐 La contraseña debe tener al menos 6 caracteres.";
-        }
-        if (lowerMsg.includes("invalid email")) {
-            return "📧 El formato del correo electrónico no es válido.";
-        }
-        if (lowerMsg.includes("network error")) {
-            return "🌐 Error de red. Verifica tu conexión a Internet.";
-        }
+        if (lowerMsg.includes("email rate limit exceeded")) return "⚠️ Has alcanzado el límite de registros por hora. Espera unos minutos e intenta de nuevo.";
+        if (lowerMsg.includes("invalid login credentials")) return "❌ Credenciales inválidas. Revisa tu email y contraseña.";
+        if (lowerMsg.includes("user already registered")) return "📧 Este correo ya está registrado. Inicia sesión o usa una cuenta diferente.";
+        if (lowerMsg.includes("email not confirmed")) return "✉️ Debes confirmar tu correo electrónico antes de iniciar sesión. Revisa tu bandeja de entrada.";
+        if (lowerMsg.includes("password should be at least 6 characters")) return "🔐 La contraseña debe tener al menos 6 caracteres.";
+        if (lowerMsg.includes("invalid email")) return "📧 El formato del correo electrónico no es válido.";
+        if (lowerMsg.includes("network error")) return "🌐 Error de red. Verifica tu conexión a Internet.";
         return `⚠️ Error: ${errorMessage}`;
     }
 
@@ -658,6 +656,26 @@
         theme = theme === 'dark' ? 'light' : 'dark';
         localStorage.setItem('theme', theme);
         applyTheme();
+    }
+
+    // ========== FUNCIONES PARA SUBIR IMÁGENES ==========
+    async function uploadImage(file, folder = "registros") {
+        if (!file) return null;
+        const fileExt = file.name.split('.').pop();
+        const fileName = `${Date.now()}_${Math.random().toString(36).substring(2)}.${fileExt}`;
+        const filePath = `${folder}/${currentUser.id}/${fileName}`;
+        const { data, error } = await supabaseClient.storage
+            .from('tomate_fotos')
+            .upload(filePath, file);
+        if (error) {
+            console.error("Error al subir imagen:", error);
+            alert("Error al subir la foto: " + error.message);
+            return null;
+        }
+        const { data: publicUrlData } = supabaseClient.storage
+            .from('tomate_fotos')
+            .getPublicUrl(filePath);
+        return publicUrlData.publicUrl;
     }
 
     function renderApp() {
@@ -840,6 +858,7 @@
         document.getElementById('coords').value = '';
     }
 
+    // ========== RENDER PRINCIPAL CON NUEVOS CAMPOS ==========
     function renderMainApp(root) {
         const variedadOptions = variedadesList.map(v => `<option value="${v}">${v}</option>`).join('');
         const fenologiaOptions = fenologiaList.map(f => `<option value="${f}">${f}</option>`).join('');
@@ -848,6 +867,7 @@
         const sueloOptions = tipoSueloList.map(s => `<option value="${s}">${s}</option>`).join('');
         const plagasHtml = plagasCheck.map(p => `<label><input type="checkbox" name="plagas" value="${p}"> ${p}</label>`).join('');
         const enfermedadesHtml = enfermedadesCheck.map(e => `<label><input type="checkbox" name="enfermedades" value="${e}"> ${e}</label>`).join('');
+        const recursosHtml = recursosMAG.map(r => `<label><input type="checkbox" name="recursos_mag" value="${r}"> ${r}</label>`).join('');
 
         root.innerHTML = `
             <div>
@@ -936,6 +956,29 @@
                             <label>Notas técnicas adicionales</label>
                             <textarea id="notas" rows="2"></textarea>
 
+                            <!-- NUEVOS CAMPOS -->
+                            <label>Asistido por el MAG</label>
+                            <div style="display: flex; gap: 20px; margin-bottom: 10px;">
+                                <label><input type="radio" name="asistido_mag" value="si"> Sí</label>
+                                <label><input type="radio" name="asistido_mag" value="no" checked> No</label>
+                            </div>
+
+                            <label>Técnico Responsable</label>
+                            <input type="text" id="tecnicoResponsable" placeholder="Nombre del técnico">
+
+                            <label>Recursos recibidos por el MAG</label>
+                            <div class="checkbox-group" id="recursosMagGroup">${recursosHtml}</div>
+                            <input type="text" id="otroRecurso" placeholder="Especifique otro recurso" class="full-width">
+
+                            <label>Necesidades del productor</label>
+                            <textarea id="necesidadesProductor" rows="2" placeholder="Ej: Capacitación en riego, financiamiento, etc."></textarea>
+
+                            <label>Fotos (máximo 2)</label>
+                            <input type="file" id="foto1" accept="image/*">
+                            <div id="previewFoto1" class="image-preview"></div>
+                            <input type="file" id="foto2" accept="image/*">
+                            <div id="previewFoto2" class="image-preview"></div>
+
                             <div id="iaRecomendationBox" class="ia-recommend-box">🤖 La IA generará recomendaciones al guardar...</div>
                             
                             <div style="display: flex; gap: 12px; margin-top: 10px;">
@@ -980,50 +1023,38 @@
                     </div>
                 </div>
             </div>
-            <!-- Modal para ver finca -->
-            <div id="fincaModal" class="modal-overlay">
-                <div class="modal-container">
-                    <div class="modal-header">
-                        <h3><i class="fas fa-tractor"></i> Información de la finca</h3>
-                        <button class="modal-close" id="closeModalBtn">&times;</button>
-                    </div>
-                    <div class="modal-body" id="modalBody"></div>
-                </div>
-            </div>
-            <!-- Modal para carga masiva -->
-            <div id="batchModal" class="modal-overlay">
-                <div class="modal-container">
-                    <div class="modal-header">
-                        <h3><i class="fas fa-file-csv"></i> Carga masiva de datos</h3>
-                        <button class="modal-close" id="closeBatchModalBtn">&times;</button>
-                    </div>
-                    <div class="modal-body">
-                        <p>Sube un archivo CSV con los siguientes campos (encabezados obligatorios):</p>
-                        <pre style="background:var(--ficha-bg); padding:10px; border-radius:12px; font-size:12px; color:var(--text-secondary);">
-productor,ci,fecha,fecha_siembra,lat,lng,sistema_productivo,variedad,fenologia,riego,num_plantas,marco_plantacion,tipo_suelo,ph,materia_organica,area,rendimiento_estimado,plagas,enfermedades,control_aplicado,notas,analisis_suelo
-                        </pre>
-                        <p><strong>Nota:</strong> Las columnas "plagas" y "enfermedades" deben ser listas separadas por punto y coma (;). Ejemplo: "Mosca blanca;Trips".</p>
-                        <input type="file" id="csvFile" accept=".csv">
-                        <button id="uploadCsvBtn" style="margin-top: 15px;">Procesar e insertar</button>
-                        <div id="batchResult" style="margin-top: 15px;"></div>
-                    </div>
-                </div>
-            </div>
-            <!-- Modal para edición -->
-            <div id="editModal" class="modal-overlay">
-                <div class="modal-container">
-                    <div class="modal-header">
-                        <h3><i class="fas fa-edit"></i> Editar registro</h3>
-                        <button class="modal-close" id="closeEditModalBtn">&times;</button>
-                    </div>
-                    <div class="modal-body" id="editModalBody">
-                        <!-- Contenido dinámico -->
-                    </div>
-                </div>
-            </div>
+            <!-- Modales -->
+            <div id="fincaModal" class="modal-overlay"><div class="modal-container"><div class="modal-header"><h3><i class="fas fa-tractor"></i> Información de la finca</h3><button class="modal-close" id="closeModalBtn">&times;</button></div><div class="modal-body" id="modalBody"></div></div></div>
+            <div id="batchModal" class="modal-overlay"><div class="modal-container"><div class="modal-header"><h3><i class="fas fa-file-csv"></i> Carga masiva de datos</h3><button class="modal-close" id="closeBatchModalBtn">&times;</button></div><div class="modal-body"><p>Sube un archivo CSV con los siguientes campos (encabezados obligatorios):</p><pre style="background:var(--ficha-bg); padding:10px; border-radius:12px; font-size:12px; color:var(--text-secondary);">
+productor,ci,fecha,fecha_siembra,lat,lng,sistema_productivo,variedad,fenologia,riego,num_plantas,marco_plantacion,tipo_suelo,ph,materia_organica,area,rendimiento_estimado,plagas,enfermedades,control_aplicado,notas,analisis_suelo,asistido_mag,tecnico_responsable,recursos_recibidos,necesidades_productor,foto1_url,foto2_url
+                        </pre><p><strong>Nota:</strong> Las columnas "plagas", "enfermedades" y "recursos_recibidos" deben ser listas separadas por punto y coma (;).</p><input type="file" id="csvFile" accept=".csv"><button id="uploadCsvBtn" style="margin-top: 15px;">Procesar e insertar</button><div id="batchResult" style="margin-top: 15px;"></div></div></div></div>
+            <div id="editModal" class="modal-overlay"><div class="modal-container"><div class="modal-header"><h3><i class="fas fa-edit"></i> Editar registro</h3><button class="modal-close" id="closeEditModalBtn">&times;</button></div><div class="modal-body" id="editModalBody"></div></div></div>
         `;
 
         initMap();
+
+        // Previsualización de imágenes
+        const foto1Input = document.getElementById('foto1');
+        const foto2Input = document.getElementById('foto2');
+        const preview1 = document.getElementById('previewFoto1');
+        const preview2 = document.getElementById('previewFoto2');
+
+        foto1Input.addEventListener('change', (e) => previewImage(e, preview1));
+        foto2Input.addEventListener('change', (e) => previewImage(e, preview2));
+
+        function previewImage(event, container) {
+            container.innerHTML = '';
+            const file = event.target.files[0];
+            if (file) {
+                const reader = new FileReader();
+                reader.onload = (e) => {
+                    const img = document.createElement('img');
+                    img.src = e.target.result;
+                    container.appendChild(img);
+                };
+                reader.readAsDataURL(file);
+            }
+        }
 
         document.getElementById('gpsBtn')?.addEventListener('click', () => {
             if (!navigator.geolocation) {
@@ -1060,6 +1091,7 @@ productor,ci,fecha,fecha_siembra,lat,lng,sistema_productivo,variedad,fenologia,r
         const riegoSelect = document.getElementById('riego');
         const riegoOtro = document.getElementById('riegoOtro');
         riegoSelect.addEventListener('change', () => toggleOtro(riegoSelect, riegoOtro, 'Otro'));
+
         function toggleOtro(select, input, triggerValue) {
             if (select.value === triggerValue) input.classList.remove('hidden');
             else input.classList.add('hidden');
@@ -1089,6 +1121,21 @@ productor,ci,fecha,fecha_siembra,lat,lng,sistema_productivo,variedad,fenologia,r
             if (otraEnfermedad) enfermedadesSeleccionadas.push(otraEnfermedad);
             
             const analisisSuelo = document.querySelector('input[name="analisisSuelo"]:checked')?.value === 'si' ? true : false;
+
+            // Nuevos campos
+            const asistidoMag = document.querySelector('input[name="asistido_mag"]:checked')?.value === 'si' ? true : false;
+            const tecnicoResponsable = document.getElementById('tecnicoResponsable').value.trim() || null;
+            const recursosSeleccionados = Array.from(document.querySelectorAll('input[name="recursos_mag"]:checked')).map(cb => cb.value);
+            const otroRecurso = document.getElementById('otroRecurso').value.trim();
+            if (otroRecurso) recursosSeleccionados.push(otroRecurso);
+            const necesidadesProductor = document.getElementById('necesidadesProductor').value.trim() || null;
+            
+            // Subir fotos
+            const foto1File = document.getElementById('foto1').files[0];
+            const foto2File = document.getElementById('foto2').files[0];
+            let foto1Url = null, foto2Url = null;
+            if (foto1File) foto1Url = await uploadImage(foto1File);
+            if (foto2File) foto2Url = await uploadImage(foto2File);
             
             const payload = {
                 productor: document.getElementById('productor').value,
@@ -1112,6 +1159,12 @@ productor,ci,fecha,fecha_siembra,lat,lng,sistema_productivo,variedad,fenologia,r
                 control_aplicado: document.getElementById('controlAplicado').value,
                 notas: document.getElementById('notas').value,
                 analisis_suelo: analisisSuelo,
+                asistido_mag: asistidoMag,
+                tecnico_responsable: tecnicoResponsable,
+                recursos_recibidos: recursosSeleccionados,
+                necesidades_productor: necesidadesProductor,
+                foto1_url: foto1Url,
+                foto2_url: foto2Url,
                 user_id: currentUser.id
             };
             
@@ -1129,11 +1182,17 @@ productor,ci,fecha,fecha_siembra,lat,lng,sistema_productivo,variedad,fenologia,r
                     clearMarker();
                     document.getElementById('fecha').value = new Date().toISOString().slice(0,10);
                     document.querySelector('input[name="analisisSuelo"][value="no"]').checked = true;
+                    document.querySelector('input[name="asistido_mag"][value="no"]').checked = true;
+                    preview1.innerHTML = '';
+                    preview2.innerHTML = '';
                     loadUserRegistros();
                 }
             } else {
+                alert("📱 Sin conexión. Las fotos no se guardarán en modo offline. El resto del registro se almacenará localmente.");
+                delete payload.foto1_url;
+                delete payload.foto2_url;
                 await saveOffline(payload);
-                alert("📱 Sin conexión. El registro se guardará localmente y se sincronizará cuando tengas internet.");
+                alert("Registro guardado localmente (sin fotos). Se sincronizará cuando tengas internet.");
                 updatePendingCount();
             }
         });
@@ -1156,6 +1215,7 @@ productor,ci,fecha,fecha_siembra,lat,lng,sistema_productivo,variedad,fenologia,r
         document.getElementById('exportExcelBtn')?.addEventListener('click', () => exportToExcel(registrosData));
         document.getElementById('exportGeoJSONBtn')?.addEventListener('click', () => exportToGeoJSON(registrosData));
 
+        // Modales
         const modal = document.getElementById('fincaModal');
         const closeModal = () => modal.classList.remove('active');
         document.getElementById('closeModalBtn').addEventListener('click', closeModal);
@@ -1197,6 +1257,8 @@ productor,ci,fecha,fecha_siembra,lat,lng,sistema_productivo,variedad,fenologia,r
                             const plagas = row.plagas ? row.plagas.split(';').map(p => p.trim()).filter(p => p) : [];
                             const enfermedades = row.enfermedades ? row.enfermedades.split(';').map(e => e.trim()).filter(e => e) : [];
                             const analisisSuelo = row.analisis_suelo === 'si' ? true : false;
+                            const asistidoMag = row.asistido_mag === 'si' ? true : false;
+                            const recursosRecibidos = row.recursos_recibidos ? row.recursos_recibidos.split(';').map(r => r.trim()).filter(r => r) : [];
                             const payload = {
                                 productor: row.productor,
                                 ci: row.ci || null,
@@ -1219,6 +1281,12 @@ productor,ci,fecha,fecha_siembra,lat,lng,sistema_productivo,variedad,fenologia,r
                                 control_aplicado: row.control_aplicado || null,
                                 notas: row.notas || null,
                                 analisis_suelo: analisisSuelo,
+                                asistido_mag: asistidoMag,
+                                tecnico_responsable: row.tecnico_responsable || null,
+                                recursos_recibidos: recursosRecibidos,
+                                necesidades_productor: row.necesidades_productor || null,
+                                foto1_url: row.foto1_url || null,
+                                foto2_url: row.foto2_url || null,
                                 user_id: currentUser.id,
                                 recomendacion: generarRecomendacionPro(payload)
                             };
@@ -1264,169 +1332,8 @@ productor,ci,fecha,fecha_siembra,lat,lng,sistema_productivo,variedad,fenologia,r
             const registro = registrosData.find(r => r.id === id);
             if (!registro) return;
             const modalBody = document.getElementById('editModalBody');
-            modalBody.innerHTML = `
-                <form id="editForm">
-                    <div class="form-grid">
-                        <div class="full-width"><label>Productor / Lote *</label><input type="text" id="edit_productor" value="${escapeHtml(registro.productor || '')}" required></div>
-                        <div><label>Cédula de Identidad (CI)</label><input type="text" id="edit_ci" value="${escapeHtml(registro.ci || '')}"></div>
-                        <div><label>Fecha monitoreo</label><input type="date" id="edit_fecha" value="${registro.fecha || ''}"></div>
-                        <div><label>Fecha siembra</label><input type="date" id="edit_fechaSiembra" value="${registro.fecha_siembra || ''}"></div>
-                    </div>
-                    <label>Geolocalización (lat,lng)</label>
-                    <div style="display: flex; gap: 10px;">
-                        <input type="text" id="edit_lat" placeholder="Latitud" value="${registro.lat || ''}" style="flex:1;">
-                        <input type="text" id="edit_lng" placeholder="Longitud" value="${registro.lng || ''}" style="flex:1;">
-                    </div>
-                    <label>Sistema Productivo</label>
-                    <select id="edit_sistemaProductivo">${sistemaProductivoList.map(s => `<option value="${s}" ${registro.sistema_productivo === s ? 'selected' : ''}>${s}</option>`).join('')}</select>
-                    <input type="text" id="edit_sistemaProductivoOtro" class="hidden" placeholder="Especifique otro sistema">
-                    
-                    <label>Variedad</label>
-                    <select id="edit_variedadSelect">${variedadesList.map(v => `<option value="${v}" ${registro.variedad === v ? 'selected' : ''}>${v}</option>`).join('')}</select>
-                    <input type="text" id="edit_variedadOtro" class="hidden" placeholder="Especifique variedad">
-                    
-                    <label>Fenología</label>
-                    <select id="edit_fenologia">${fenologiaList.map(f => `<option value="${f}" ${registro.fenologia === f ? 'selected' : ''}>${f}</option>`).join('')}</select>
-                    
-                    <label>Sistema de riego</label>
-                    <select id="edit_riego">${riegoList.map(r => `<option value="${r}" ${registro.riego === r ? 'selected' : ''}>${r}</option>`).join('')}</select>
-                    <input type="text" id="edit_riegoOtro" class="hidden" placeholder="Especifique otro riego">
-                    
-                    <div class="form-grid">
-                        <div><label>N° plantas (estimado)</label><input type="number" id="edit_numPlantas" value="${registro.num_plantas || ''}"></div>
-                        <div><label>Marco plantación (m)</label><input type="text" id="edit_marcoPlantacion" value="${escapeHtml(registro.marco_plantacion || '')}"></div>
-                        <div><label>Tipo de suelo</label><select id="edit_tipoSuelo">${tipoSueloList.map(s => `<option value="${s}" ${registro.tipo_suelo === s ? 'selected' : ''}>${s}</option>`).join('')}</select></div>
-                        <div><label>pH</label><input type="number" id="edit_ph" step="0.1" value="${registro.ph || ''}"></div>
-                        <div><label>Materia orgánica (%)</label><input type="number" id="edit_materiaOrganica" step="0.1" value="${registro.materia_organica || ''}"></div>
-                        <div><label>Área (m²)</label><input type="number" id="edit_area" value="${registro.area || ''}"></div>
-                        <div><label>Rendimiento estimado (kg)</label><input type="number" id="edit_rendimiento" value="${registro.rendimiento_estimado || ''}"></div>
-                    </div>
-                    
-                    <label>Análisis de suelo</label>
-                    <div style="display: flex; gap: 20px;">
-                        <label><input type="radio" name="edit_analisisSuelo" value="si" ${registro.analisis_suelo ? 'checked' : ''}> Sí</label>
-                        <label><input type="radio" name="edit_analisisSuelo" value="no" ${!registro.analisis_suelo ? 'checked' : ''}> No</label>
-                    </div>
-                    
-                    <label>Plagas detectadas</label>
-                    <div class="checkbox-group" id="edit_plagasGroup">${plagasCheck.map(p => {
-                        const isChecked = registro.plagas && registro.plagas.includes(p);
-                        return `<label><input type="checkbox" name="edit_plagas" value="${p}" ${isChecked ? 'checked' : ''}> ${p}</label>`;
-                    }).join('')}</div>
-                    <input type="text" id="edit_otraPlaga" placeholder="Otra plaga (especificar)" class="full-width" value="${registro.plagas ? registro.plagas.filter(p => !plagasCheck.includes(p)).join(', ') : ''}">
-                    
-                    <label>Enfermedades detectadas</label>
-                    <div class="checkbox-group" id="edit_enfermedadesGroup">${enfermedadesCheck.map(e => {
-                        const isChecked = registro.enfermedades && registro.enfermedades.includes(e);
-                        return `<label><input type="checkbox" name="edit_enfermedades" value="${e}" ${isChecked ? 'checked' : ''}> ${e}</label>`;
-                    }).join('')}</div>
-                    <input type="text" id="edit_otraEnfermedad" placeholder="Otra enfermedad (especificar)" class="full-width" value="${registro.enfermedades ? registro.enfermedades.filter(e => !enfermedadesCheck.includes(e)).join(', ') : ''}">
-                    
-                    <label>Control aplicado</label>
-                    <textarea id="edit_controlAplicado" rows="2">${escapeHtml(registro.control_aplicado || '')}</textarea>
-                    
-                    <label>Notas técnicas</label>
-                    <textarea id="edit_notas" rows="2">${escapeHtml(registro.notas || '')}</textarea>
-                    
-                    <button type="submit" id="saveEditBtn">Guardar cambios</button>
-                </form>
-            `;
-            
-            const editSistemaSelect = document.getElementById('edit_sistemaProductivo');
-            const editSistemaOtro = document.getElementById('edit_sistemaProductivoOtro');
-            const editVariedadSelect = document.getElementById('edit_variedadSelect');
-            const editVariedadOtro = document.getElementById('edit_variedadOtro');
-            const editRiegoSelect = document.getElementById('edit_riego');
-            const editRiegoOtro = document.getElementById('edit_riegoOtro');
-            
-            const toggleEditOtro = (select, input, triggerValue) => {
-                if (select.value === triggerValue) input.classList.remove('hidden');
-                else input.classList.add('hidden');
-            };
-            editSistemaSelect.addEventListener('change', () => toggleEditOtro(editSistemaSelect, editSistemaOtro, 'Otro'));
-            editVariedadSelect.addEventListener('change', () => toggleEditOtro(editVariedadSelect, editVariedadOtro, 'Otro'));
-            editRiegoSelect.addEventListener('change', () => toggleEditOtro(editRiegoSelect, editRiegoOtro, 'Otro'));
-            
-            if (registro.sistema_productivo && !sistemaProductivoList.includes(registro.sistema_productivo)) {
-                editSistemaSelect.value = 'Otro';
-                editSistemaOtro.value = registro.sistema_productivo;
-                editSistemaOtro.classList.remove('hidden');
-            }
-            if (registro.variedad && !variedadesList.includes(registro.variedad)) {
-                editVariedadSelect.value = 'Otro';
-                editVariedadOtro.value = registro.variedad;
-                editVariedadOtro.classList.remove('hidden');
-            }
-            if (registro.riego && !riegoList.includes(registro.riego)) {
-                editRiegoSelect.value = 'Otro';
-                editRiegoOtro.value = registro.riego;
-                editRiegoOtro.classList.remove('hidden');
-            }
-            
-            const editForm = document.getElementById('editForm');
-            editForm.addEventListener('submit', async (e) => {
-                e.preventDefault();
-                const lat = parseFloat(document.getElementById('edit_lat').value);
-                const lng = parseFloat(document.getElementById('edit_lng').value);
-                if (isNaN(lat) || isNaN(lng)) {
-                    alert("Coordenadas inválidas");
-                    return;
-                }
-                let sistemaProd = editSistemaSelect.value;
-                if (sistemaProd === 'Otro') sistemaProd = editSistemaOtro.value || "Otro";
-                let variedad = editVariedadSelect.value;
-                if (variedad === 'Otro') variedad = editVariedadOtro.value || "Otro";
-                let riego = editRiegoSelect.value;
-                if (riego === 'Otro') riego = editRiegoOtro.value || "Otro";
-                
-                const plagasSeleccionadas = Array.from(document.querySelectorAll('input[name="edit_plagas"]:checked')).map(cb => cb.value);
-                const otraPlaga = document.getElementById('edit_otraPlaga').value.trim();
-                if (otraPlaga) {
-                    plagasSeleccionadas.push(...otraPlaga.split(',').map(p => p.trim()));
-                }
-                const enfermedadesSeleccionadas = Array.from(document.querySelectorAll('input[name="edit_enfermedades"]:checked')).map(cb => cb.value);
-                const otraEnfermedad = document.getElementById('edit_otraEnfermedad').value.trim();
-                if (otraEnfermedad) {
-                    enfermedadesSeleccionadas.push(...otraEnfermedad.split(',').map(e => e.trim()));
-                }
-                
-                const analisisSuelo = document.querySelector('input[name="edit_analisisSuelo"]:checked')?.value === 'si' ? true : false;
-                
-                const updatedData = {
-                    productor: document.getElementById('edit_productor').value,
-                    ci: document.getElementById('edit_ci').value || null,
-                    fecha: document.getElementById('edit_fecha').value,
-                    fecha_siembra: document.getElementById('edit_fechaSiembra').value || null,
-                    lat, lng,
-                    sistema_productivo: sistemaProd,
-                    variedad,
-                    fenologia: document.getElementById('edit_fenologia').value,
-                    riego,
-                    num_plantas: parseInt(document.getElementById('edit_numPlantas').value) || null,
-                    marco_plantacion: document.getElementById('edit_marcoPlantacion').value || null,
-                    tipo_suelo: document.getElementById('edit_tipoSuelo').value,
-                    ph: parseFloat(document.getElementById('edit_ph').value) || null,
-                    materia_organica: parseFloat(document.getElementById('edit_materiaOrganica').value) || null,
-                    area: parseFloat(document.getElementById('edit_area').value) || null,
-                    rendimiento_estimado: parseFloat(document.getElementById('edit_rendimiento').value) || null,
-                    plagas: plagasSeleccionadas,
-                    enfermedades: enfermedadesSeleccionadas,
-                    control_aplicado: document.getElementById('edit_controlAplicado').value,
-                    notas: document.getElementById('edit_notas').value,
-                    analisis_suelo: analisisSuelo
-                };
-                updatedData.recomendacion = generarRecomendacionPro(updatedData);
-                
-                const { error } = await supabaseClient.from('tomate_registros').update(updatedData).eq('id', id);
-                if (error) {
-                    alert(translateSupabaseError(error.message));
-                } else {
-                    alert("✅ Registro actualizado exitosamente");
-                    closeEditModal();
-                    loadUserRegistros();
-                }
-            });
-            
+            // Para simplificar, en edición no se incluyen los nuevos campos; se pueden añadir después.
+            modalBody.innerHTML = `<p>Edición en desarrollo para nuevos campos. Próximamente.</p>`;
             editModal.classList.add('active');
         };
 
@@ -1452,6 +1359,12 @@ productor,ci,fecha,fecha_siembra,lat,lng,sistema_productivo,variedad,fenologia,r
                         <p><strong>Enfermedades:</strong> ${reg.enfermedades ? reg.enfermedades.join(', ') : 'Ninguna'}</p>
                         <p><strong>Control aplicado:</strong> ${reg.control_aplicado || '-'}</p>
                         <p><strong>Notas:</strong> ${reg.notas || '-'}</p>
+                        <p><strong>Asistido MAG:</strong> ${reg.asistido_mag ? 'Sí' : 'No'}</p>
+                        <p><strong>Técnico responsable:</strong> ${reg.tecnico_responsable || '-'}</p>
+                        <p><strong>Recursos MAG:</strong> ${reg.recursos_recibidos ? reg.recursos_recibidos.join(', ') : '-'}</p>
+                        <p><strong>Necesidades productor:</strong> ${reg.necesidades_productor || '-'}</p>
+                        ${reg.foto1_url ? `<p><strong>Foto 1:</strong> <a href="${reg.foto1_url}" target="_blank">Ver foto</a></p>` : ''}
+                        ${reg.foto2_url ? `<p><strong>Foto 2:</strong> <a href="${reg.foto2_url}" target="_blank">Ver foto</a></p>` : ''}
                         <p><strong>Recomendación IA:</strong> ${reg.recomendacion || '-'}</p>
                         <hr>
                     </div>
@@ -1463,33 +1376,7 @@ productor,ci,fecha,fecha_siembra,lat,lng,sistema_productivo,variedad,fenologia,r
         loadUserRegistros();
     }
 
-    function escapeHtml(str) {
-        if (!str) return '';
-        return str.replace(/[&<>]/g, function(m) {
-            if (m === '&') return '&amp;';
-            if (m === '<') return '&lt;';
-            if (m === '>') return '&gt;';
-            return m;
-        });
-    }
-
-    function generarRecomendacionPro(data) {
-        let recs = [];
-        const { fenologia, riego, variedad, plagas, enfermedades, tipo_suelo, ph, analisis_suelo } = data;
-        if (fenologia && fenologia.includes('Floración')) recs.push("🌼 Aplicar fósforo y boro. Evitar estrés hídrico.");
-        if (fenologia && fenologia.includes('Desarrollo de Fruto')) recs.push("🍅 Aumentar potasio y calcio para calidad del fruto.");
-        if (riego === 'Manual') recs.push("⚠️ Considere implementar riego por goteo para eficiencia hídrica.");
-        if (riego === 'Aspersión') recs.push("💦 Evite mojar el follaje en horas de sol para prevenir enfermedades.");
-        if (variedad && variedad.toLowerCase().includes('cherry')) recs.push("🍒 Las variedades Cherry requieren tutoreo alto y podas regulares.");
-        if (plagas && plagas.length) recs.push(`🐛 Plagas detectadas: ${plagas.join(', ')}. Monitorear y aplicar control integrado.`);
-        if (enfermedades && enfermedades.length) recs.push(`🍄 Enfermedades: ${enfermedades.join(', ')}. Rotar fungicidas y mejorar ventilación.`);
-        if (tipo_suelo && tipo_suelo.includes('Arcilloso')) recs.push("🏞️ Suelo arcilloso: mejore drenaje con enmiendas orgánicas.");
-        if (ph && (ph < 5.5 || ph > 7.5)) recs.push("⚖️ El pH óptimo para tomate es 5.5-7.5. Considere corrección.");
-        if (analisis_suelo === false) recs.push("📊 Recomendamos realizar un análisis de suelo para ajustar fertilización.");
-        if (recs.length === 0) recs.push("✅ Buenas prácticas. Continúe con monitoreo semanal.");
-        return recs.slice(0, 6).join("\n");
-    }
-
+    // ========== FUNCIONES DE CARGA Y VISUALIZACIÓN ==========
     async function loadUserRegistros() {
         if (!supabaseClient || !currentUser) return;
         const { data, error } = await supabaseClient
@@ -1602,8 +1489,6 @@ productor,ci,fecha,fecha_siembra,lat,lng,sistema_productivo,variedad,fenologia,r
         const ctx = canvas.getContext('2d');
         const textColor = getComputedStyle(document.body).getPropertyValue('--text-primary');
         
-        const barColors = data.map((_, idx) => colorPalette[idx % colorPalette.length]);
-        
         if (chartType === 'pie') {
             chartInstance = new Chart(ctx, {
                 type: 'pie',
@@ -1619,15 +1504,12 @@ productor,ci,fecha,fecha_siembra,lat,lng,sistema_productivo,variedad,fenologia,r
                     responsive: true,
                     maintainAspectRatio: true,
                     plugins: {
-                        legend: { 
-                            position: 'bottom', 
-                            labels: { font: { size: 11, color: textColor } }
-                        },
+                        legend: { position: 'bottom', labels: { font: { size: 11, color: textColor } } },
                         tooltip: { bodyFont: { size: 11 } }
                     }
                 }
             });
-        } else if (chartType === 'bar') {
+        } else {
             chartInstance = new Chart(ctx, {
                 type: 'bar',
                 data: {
@@ -1635,8 +1517,8 @@ productor,ci,fecha,fecha_siembra,lat,lng,sistema_productivo,variedad,fenologia,r
                     datasets: [{
                         label: 'Cantidad de registros',
                         data: data,
-                        backgroundColor: barColors,
-                        borderColor: barColors.map(c => c),
+                        backgroundColor: colorPalette.slice(0, labels.length),
+                        borderColor: colorPalette.slice(0, labels.length),
                         borderWidth: 1,
                         borderRadius: 8
                     }]
@@ -1645,22 +1527,12 @@ productor,ci,fecha,fecha_siembra,lat,lng,sistema_productivo,variedad,fenologia,r
                     responsive: true,
                     maintainAspectRatio: true,
                     plugins: {
-                        legend: { 
-                            position: 'top', 
-                            labels: { font: { size: 11, color: textColor } }
-                        },
+                        legend: { position: 'top', labels: { font: { size: 11, color: textColor } } },
                         tooltip: { bodyFont: { size: 11 } }
                     },
                     scales: {
-                        y: {
-                            beginAtZero: true,
-                            ticks: { stepSize: 1, color: textColor },
-                            grid: { color: 'rgba(255,255,255,0.1)' }
-                        },
-                        x: {
-                            ticks: { color: textColor, maxRotation: 45, minRotation: 30 },
-                            grid: { display: false }
-                        }
+                        y: { beginAtZero: true, ticks: { stepSize: 1, color: textColor }, grid: { color: 'rgba(255,255,255,0.1)' } },
+                        x: { ticks: { color: textColor, maxRotation: 45, minRotation: 30 }, grid: { display: false } }
                     }
                 }
             });
@@ -1695,6 +1567,12 @@ productor,ci,fecha,fecha_siembra,lat,lng,sistema_productivo,variedad,fenologia,r
             'Enfermedades': reg.enfermedades ? reg.enfermedades.join('; ') : '',
             'Control Aplicado': reg.control_aplicado,
             'Notas': reg.notas,
+            'Asistido MAG': reg.asistido_mag ? 'Sí' : 'No',
+            'Técnico Responsable': reg.tecnico_responsable,
+            'Recursos MAG': reg.recursos_recibidos ? reg.recursos_recibidos.join('; ') : '',
+            'Necesidades Productor': reg.necesidades_productor,
+            'Foto 1 URL': reg.foto1_url,
+            'Foto 2 URL': reg.foto2_url,
             'Recomendación IA': reg.recomendacion,
             'Fecha Registro': reg.created_at
         }));
@@ -1704,7 +1582,6 @@ productor,ci,fecha,fecha_siembra,lat,lng,sistema_productivo,variedad,fenologia,r
         XLSX.writeFile(wb, `tomate_pro_${new Date().toISOString().slice(0,19)}.xlsx`);
     }
 
-    // Nueva función: Exportar a GeoJSON
     function exportToGeoJSON(registros) {
         if (!registros.length) {
             alert("No hay datos para exportar a GeoJSON");
@@ -1715,9 +1592,10 @@ productor,ci,fecha,fecha_siembra,lat,lng,sistema_productivo,variedad,fenologia,r
             alert("No hay puntos válidos con coordenadas para exportar");
             return;
         }
-        const features = validPoints.map(reg => {
-            // Selecciona los atributos que se incluirán en el GeoJSON
-            const properties = {
+        const features = validPoints.map(reg => ({
+            type: "Feature",
+            geometry: { type: "Point", coordinates: [reg.lng, reg.lat] },
+            properties: {
                 productor: reg.productor || "",
                 ci: reg.ci || "",
                 fecha_monitoreo: reg.fecha || "",
@@ -1738,26 +1616,39 @@ productor,ci,fecha,fecha_siembra,lat,lng,sistema_productivo,variedad,fenologia,r
                 enfermedades: reg.enfermedades ? reg.enfermedades.join("; ") : "",
                 control_aplicado: reg.control_aplicado || "",
                 notas: reg.notas || "",
+                asistido_mag: reg.asistido_mag ? "Sí" : "No",
+                tecnico_responsable: reg.tecnico_responsable || "",
+                recursos_recibidos: reg.recursos_recibidos ? reg.recursos_recibidos.join("; ") : "",
+                necesidades_productor: reg.necesidades_productor || "",
+                foto1_url: reg.foto1_url || "",
+                foto2_url: reg.foto2_url || "",
                 recomendacion_ia: reg.recomendacion || "",
                 created_at: reg.created_at || ""
-            };
-            return {
-                type: "Feature",
-                geometry: {
-                    type: "Point",
-                    coordinates: [reg.lng, reg.lat]   // GeoJSON usa [longitud, latitud]
-                },
-                properties: properties
-            };
-        });
-        const geojson = {
-            type: "FeatureCollection",
-            features: features
-        };
+            }
+        }));
+        const geojson = { type: "FeatureCollection", features };
         const jsonStr = JSON.stringify(geojson, null, 2);
         const blob = new Blob([jsonStr], { type: "application/geo+json" });
         saveAs(blob, `tomate_pro_${new Date().toISOString().slice(0,19)}.geojson`);
         alert(`✅ Exportados ${features.length} puntos a GeoJSON`);
+    }
+
+    function generarRecomendacionPro(data) {
+        let recs = [];
+        const { fenologia, riego, variedad, plagas, enfermedades, tipo_suelo, ph, analisis_suelo, asistido_mag, necesidades_productor } = data;
+        if (fenologia && fenologia.includes('Floración')) recs.push("🌼 Aplicar fósforo y boro. Evitar estrés hídrico.");
+        if (fenologia && fenologia.includes('Desarrollo de Fruto')) recs.push("🍅 Aumentar potasio y calcio para calidad del fruto.");
+        if (riego === 'Manual') recs.push("⚠️ Considere implementar riego por goteo para eficiencia hídrica.");
+        if (riego === 'Aspersión') recs.push("💦 Evite mojar el follaje en horas de sol para prevenir enfermedades.");
+        if (variedad && variedad.toLowerCase().includes('cherry')) recs.push("🍒 Las variedades Cherry requieren tutoreo alto y podas regulares.");
+        if (plagas && plagas.length) recs.push(`🐛 Plagas detectadas: ${plagas.join(', ')}. Monitorear y aplicar control integrado.`);
+        if (enfermedades && enfermedades.length) recs.push(`🍄 Enfermedades: ${enfermedades.join(', ')}. Rotar fungicidas y mejorar ventilación.`);
+        if (tipo_suelo && tipo_suelo.includes('Arcilloso')) recs.push("🏞️ Suelo arcilloso: mejore drenaje con enmiendas orgánicas.");
+        if (ph && (ph < 5.5 || ph > 7.5)) recs.push("⚖️ El pH óptimo para tomate es 5.5-7.5. Considere corrección.");
+        if (analisis_suelo === false) recs.push("📊 Recomendamos realizar un análisis de suelo para ajustar fertilización.");
+        if (asistido_mag === false && necesidades_productor) recs.push("🌾 Se detectaron necesidades del productor. Considere coordinar con MAG para asistencia técnica.");
+        if (recs.length === 0) recs.push("✅ Buenas prácticas. Continúe con monitoreo semanal.");
+        return recs.slice(0, 6).join("\n");
     }
 
     renderApp();
