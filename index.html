@@ -17,23 +17,21 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
     <!-- Export to Excel (SheetJS) -->
     <script src="https://cdn.sheetjs.com/xlsx-0.20.2/package/dist/xlsx.full.min.js"></script>
-    <!-- Export to Shapefile (shp-write) y file-saver -->
-    <script src="https://unpkg.com/shp-write@2.0.1/shpwrite.js"></script>
+    <!-- FileSaver para descargar archivos -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/FileSaver.js/2.0.5/FileSaver.min.js"></script>
-	<link rel="manifest" href="manifest.json">
-<meta name="theme-color" content="#e74c3c">
-
-<script>
-  if ('serviceWorker' in navigator) {
-    window.addEventListener('load', () => {
-      navigator.serviceWorker.register('sw.js')
-        .then(reg => console.log('Service Worker registrado'))
-        .catch(err => console.log('Error al registrar SW', err));
-    });
-  }
-</script>
-	
-	
+    <!-- localForage para almacenamiento offline -->
+    <script src="https://cdn.jsdelivr.net/npm/localforage@1.10.0/dist/localforage.min.js"></script>
+    <link rel="manifest" href="manifest.json">
+    <meta name="theme-color" content="#e74c3c">
+    <script>
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register('sw.js')
+                    .then(reg => console.log('Service Worker registrado'))
+                    .catch(err => console.log('Error al registrar SW', err));
+            });
+        }
+    </script>
     <style>
         /* Tema oscuro (default) */
         :root {
@@ -294,7 +292,6 @@
             font-size: 1.2rem;
             transition: 0.1s;
         }
-        /* Colores de iconos */
         .icon-map { color: var(--accent-gold); }
         .icon-view { color: var(--accent-green); }
         .icon-edit { color: var(--accent-blue); }
@@ -352,7 +349,6 @@
             width: auto;
             margin: 0;
         }
-        /* Scroll para la lista de registros */
         #registrosList {
             max-height: 400px;
             overflow-y: auto;
@@ -484,8 +480,16 @@
         button, .btn-logout, .btn-secondary, .btn-outline, .acciones i {
             touch-action: manipulation;
         }
+        /* Indicador offline */
+        .offline-indicator {
+            background: #c44536;
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 0.8rem;
+            display: none;
+            margin-left: 12px;
+        }
     </style>
-	
 </head>
 <body>
 <div id="appRoot" class="pro-container"></div>
@@ -515,6 +519,85 @@
         anonKey: localStorage.getItem('tomate_supabase_anon')
     };
 
+    // ========== OFFLINE STORAGE ==========
+    const offlineStore = (() => {
+        try {
+            return localforage.createInstance({
+                name: "TomatePRO",
+                storeName: "pending_records"
+            });
+        } catch(e) {
+            console.warn("localforage no disponible, usando localStorage fallback");
+            return {
+                setItem: (key, val) => { localStorage.setItem(key, JSON.stringify(val)); return Promise.resolve(); },
+                getItem: (key) => Promise.resolve(JSON.parse(localStorage.getItem(key))),
+                removeItem: (key) => { localStorage.removeItem(key); return Promise.resolve(); },
+                keys: () => Promise.resolve(Object.keys(localStorage).filter(k => k.startsWith('pending_')))
+            };
+        }
+    })();
+
+    async function saveOffline(record) {
+        record._sync_status = 'pending';
+        record._created_at = new Date().toISOString();
+        const key = `pending_${Date.now()}_${Math.random().toString(36).substr(2, 8)}`;
+        await offlineStore.setItem(key, record);
+        return { success: true, offline: true };
+    }
+
+    async function syncPendingRecords() {
+        if (!supabaseClient || !currentUser) return;
+        const keys = await offlineStore.keys();
+        const pendingKeys = keys.filter(k => k.startsWith('pending_'));
+        if (pendingKeys.length === 0) return;
+
+        for (const key of pendingKeys) {
+            const record = await offlineStore.getItem(key);
+            if (record && record._sync_status === 'pending') {
+                try {
+                    const { _sync_status, _created_at, ...cleanRecord } = record;
+                    cleanRecord.user_id = currentUser.id;
+                    const { error } = await supabaseClient.from('tomate_registros').insert([cleanRecord]);
+                    if (!error) {
+                        await offlineStore.removeItem(key);
+                        console.log(`Registro sincronizado: ${key}`);
+                    } else {
+                        console.error('Error al sincronizar:', error);
+                        if (error.message.includes('JWT') || error.message.includes('auth')) {
+                            await offlineStore.removeItem(key);
+                        }
+                    }
+                } catch (err) {
+                    console.error('Error de red al sincronizar:', err);
+                }
+            }
+        }
+        updatePendingCount();
+        loadUserRegistros();
+    }
+
+    async function updatePendingCount() {
+        try {
+            const keys = await offlineStore.keys();
+            const pending = keys.filter(k => k.startsWith('pending_')).length;
+            const indicator = document.getElementById('offlineIndicator');
+            const countSpan = document.getElementById('pendingCount');
+            if (indicator) {
+                if (pending > 0) {
+                    indicator.style.display = 'inline-block';
+                    countSpan.innerText = pending;
+                } else {
+                    indicator.style.display = 'none';
+                }
+            }
+        } catch(e) { console.warn(e); }
+    }
+
+    window.addEventListener('online', () => {
+        console.log('Conexión recuperada. Sincronizando...');
+        syncPendingRecords();
+    });
+
     // Listas de opciones
     const variedadesList = ["Santa Cruz", "Santa Clara", "Ravena", "Katana", "Tipo Cherry", "Jumbo", "Sahariana", "Caniati", "Otro"];
     const fenologiaList = [
@@ -534,10 +617,8 @@
     const plagasCheck = ["Mosca blanca", "Trips", "Pulgón", "Minador", "Gusano cogollero","Palomilla","Ybytazo", "Ácaros", "Otra"];
     const enfermedadesCheck = ["Mildiu", "Mbiru", "Septoriosis", "Vira Cabeza", "Tizon","Botrytis", "Fusarium", "Mancha Bacteriana", "Otra"];
 
-    // Paleta de colores para gráficos
     const colorPalette = ['#f4b942', '#2c7a4a', '#c44536', '#3a6b8f', '#f39c12', '#27ae60', '#e67e22', '#2980b9', '#8e44ad', '#16a085'];
 
-    // ========== TRADUCCIÓN DE ERRORES DE SUPABASE ==========
     function translateSupabaseError(errorMessage) {
         if (!errorMessage) return "Error desconocido";
         const lowerMsg = errorMessage.toLowerCase();
@@ -604,6 +685,9 @@
             currentUser = user;
             renderMainApp(root);
             loadUserRegistros();
+            if (navigator.onLine) {
+                syncPendingRecords();
+            }
         } else {
             renderAuthScreen(root);
         }
@@ -778,6 +862,9 @@
                             <i class="fas fa-user-check"></i> ${currentUser?.email || 'Agricultor'}
                             <button id="logoutBtnPro" class="btn-logout"><i class="fas fa-sign-out-alt"></i> Salir</button>
                         </div>
+                        <div id="offlineIndicator" class="offline-indicator">
+                            <i class="fas fa-cloud-upload-alt"></i> Pendientes: <span id="pendingCount">0</span>
+                        </div>
                     </div>
                 </div>
 
@@ -887,7 +974,7 @@
                         </div>
                         <div style="display: flex; gap: 12px; margin-top: 12px;">
                             <button id="exportExcelBtn" class="btn-secondary"><i class="fas fa-file-excel"></i> Exportar Excel</button>
-                            <button id="exportShapefileBtn" class="btn-secondary"><i class="fas fa-map-marked-alt"></i> Exportar Shapefile</button>
+                            <button id="exportGeoJSONBtn" class="btn-secondary"><i class="fas fa-map-marked-alt"></i> Exportar GeoJSON</button>
                         </div>
                         <button id="refreshDataBtn" class="btn-secondary" style="margin-top: 12px;"><i class="fas fa-sync-alt"></i> Sincronizar</button>
                     </div>
@@ -1032,16 +1119,22 @@ productor,ci,fecha,fecha_siembra,lat,lng,sistema_productivo,variedad,fenologia,r
             payload.recomendacion = recomendacion;
             document.getElementById('iaRecomendationBox').innerHTML = `🤖 <strong>IA Agronómica:</strong><br>${recomendacion.replace(/\n/g,'<br>')}`;
             
-            const { error } = await supabaseClient.from('tomate_registros').insert([payload]);
-            if (error) {
-                alert(translateSupabaseError(error.message));
+            if (navigator.onLine) {
+                const { error } = await supabaseClient.from('tomate_registros').insert([payload]);
+                if (error) {
+                    alert(translateSupabaseError(error.message));
+                } else {
+                    alert("✅ Registro guardado exitosamente");
+                    form.reset();
+                    clearMarker();
+                    document.getElementById('fecha').value = new Date().toISOString().slice(0,10);
+                    document.querySelector('input[name="analisisSuelo"][value="no"]').checked = true;
+                    loadUserRegistros();
+                }
             } else {
-                alert("✅ Registro guardado exitosamente");
-                form.reset();
-                clearMarker();
-                document.getElementById('fecha').value = new Date().toISOString().slice(0,10);
-                document.querySelector('input[name="analisisSuelo"][value="no"]').checked = true;
-                loadUserRegistros();
+                await saveOffline(payload);
+                alert("📱 Sin conexión. El registro se guardará localmente y se sincronizará cuando tengas internet.");
+                updatePendingCount();
             }
         });
 
@@ -1061,7 +1154,7 @@ productor,ci,fecha,fecha_siembra,lat,lng,sistema_productivo,variedad,fenologia,r
         chartTypeSelect.addEventListener('change', updateChart);
 
         document.getElementById('exportExcelBtn')?.addEventListener('click', () => exportToExcel(registrosData));
-        document.getElementById('exportShapefileBtn')?.addEventListener('click', () => exportToShapefile(registrosData));
+        document.getElementById('exportGeoJSONBtn')?.addEventListener('click', () => exportToGeoJSON(registrosData));
 
         const modal = document.getElementById('fincaModal');
         const closeModal = () => modal.classList.remove('active');
@@ -1138,13 +1231,22 @@ productor,ci,fecha,fecha_siembra,lat,lng,sistema_productivo,variedad,fenologia,r
                         document.getElementById('batchResult').innerHTML = `<p style="color:var(--accent-gold);">No hay registros válidos para insertar. ${errors.join('<br>')}</p>`;
                         return;
                     }
-                    const { error } = await supabaseClient.from('tomate_registros').insert(toInsert);
-                    if (error) {
-                        document.getElementById('batchResult').innerHTML = `<p style="color:var(--accent-red);">Error en inserción masiva: ${translateSupabaseError(error.message)}</p>`;
-                    } else {
-                        document.getElementById('batchResult').innerHTML = `<p style="color:var(--accent-green);">✅ ${toInsert.length} registros insertados correctamente. ${errors.length ? 'Errores: '+errors.join('<br>') : ''}</p>`;
+                    if (!navigator.onLine) {
+                        for (const payload of toInsert) {
+                            await saveOffline(payload);
+                        }
+                        document.getElementById('batchResult').innerHTML = `<p style="color:var(--accent-green);">✅ ${toInsert.length} registros guardados localmente. Se sincronizarán cuando haya internet. ${errors.length ? 'Errores: '+errors.join('<br>') : ''}</p>`;
+                        updatePendingCount();
                         closeBatchModal();
-                        loadUserRegistros();
+                    } else {
+                        const { error } = await supabaseClient.from('tomate_registros').insert(toInsert);
+                        if (error) {
+                            document.getElementById('batchResult').innerHTML = `<p style="color:var(--accent-red);">Error en inserción masiva: ${translateSupabaseError(error.message)}</p>`;
+                        } else {
+                            document.getElementById('batchResult').innerHTML = `<p style="color:var(--accent-green);">✅ ${toInsert.length} registros insertados correctamente. ${errors.length ? 'Errores: '+errors.join('<br>') : ''}</p>`;
+                            closeBatchModal();
+                            loadUserRegistros();
+                        }
                     }
                 },
                 error: (err) => {
@@ -1500,7 +1602,6 @@ productor,ci,fecha,fecha_siembra,lat,lng,sistema_productivo,variedad,fenologia,r
         const ctx = canvas.getContext('2d');
         const textColor = getComputedStyle(document.body).getPropertyValue('--text-primary');
         
-        // Generar colores para cada barra usando la paleta
         const barColors = data.map((_, idx) => colorPalette[idx % colorPalette.length]);
         
         if (chartType === 'pie') {
@@ -1603,9 +1704,10 @@ productor,ci,fecha,fecha_siembra,lat,lng,sistema_productivo,variedad,fenologia,r
         XLSX.writeFile(wb, `tomate_pro_${new Date().toISOString().slice(0,19)}.xlsx`);
     }
 
-    function exportToShapefile(registros) {
+    // Nueva función: Exportar a GeoJSON
+    function exportToGeoJSON(registros) {
         if (!registros.length) {
-            alert("No hay datos para exportar a shapefile");
+            alert("No hay datos para exportar a GeoJSON");
             return;
         }
         const validPoints = registros.filter(r => r.lat && r.lng && !isNaN(r.lat) && !isNaN(r.lng));
@@ -1614,63 +1716,51 @@ productor,ci,fecha,fecha_siembra,lat,lng,sistema_productivo,variedad,fenologia,r
             return;
         }
         const features = validPoints.map(reg => {
-            const props = {
-                productor: (reg.productor || '').substring(0, 80),
-                ci: (reg.ci || '').substring(0, 20),
-                fecha: (reg.fecha || '').substring(0, 10),
-                fecha_siembra: (reg.fecha_siembra || '').substring(0, 10),
-                sistema_productivo: (reg.sistema_productivo || '').substring(0, 50),
-                variedad: (reg.variedad || '').substring(0, 50),
-                fenologia: (reg.fenologia || '').substring(0, 60),
-                riego: (reg.riego || '').substring(0, 30),
+            // Selecciona los atributos que se incluirán en el GeoJSON
+            const properties = {
+                productor: reg.productor || "",
+                ci: reg.ci || "",
+                fecha_monitoreo: reg.fecha || "",
+                fecha_siembra: reg.fecha_siembra || "",
+                sistema_productivo: reg.sistema_productivo || "",
+                variedad: reg.variedad || "",
+                fenologia: reg.fenologia || "",
+                riego: reg.riego || "",
                 num_plantas: reg.num_plantas || 0,
-                marco_plantacion: (reg.marco_plantacion || '').substring(0, 30),
-                tipo_suelo: (reg.tipo_suelo || '').substring(0, 30),
-                ph: reg.ph || 0,
-                materia_organica: reg.materia_organica || 0,
-                area: reg.area || 0,
-                rendimiento: reg.rendimiento_estimado || 0,
-                analisis_suelo: reg.analisis_suelo ? 'Si' : 'No',
-                plagas: (reg.plagas ? reg.plagas.join('; ') : '').substring(0, 200),
-                enfermedades: (reg.enfermedades ? reg.enfermedades.join('; ') : '').substring(0, 200),
-                control: (reg.control_aplicado || '').substring(0, 200),
-                notas: (reg.notas || '').substring(0, 200)
+                marco_plantacion: reg.marco_plantacion || "",
+                tipo_suelo: reg.tipo_suelo || "",
+                ph: reg.ph || null,
+                materia_organica: reg.materia_organica || null,
+                area_m2: reg.area || null,
+                rendimiento_kg: reg.rendimiento_estimado || null,
+                analisis_suelo: reg.analisis_suelo ? "Sí" : "No",
+                plagas: reg.plagas ? reg.plagas.join("; ") : "",
+                enfermedades: reg.enfermedades ? reg.enfermedades.join("; ") : "",
+                control_aplicado: reg.control_aplicado || "",
+                notas: reg.notas || "",
+                recomendacion_ia: reg.recomendacion || "",
+                created_at: reg.created_at || ""
             };
             return {
                 type: "Feature",
                 geometry: {
                     type: "Point",
-                    coordinates: [reg.lng, reg.lat]
+                    coordinates: [reg.lng, reg.lat]   // GeoJSON usa [longitud, latitud]
                 },
-                properties: props
+                properties: properties
             };
         });
         const geojson = {
             type: "FeatureCollection",
             features: features
         };
-        if (typeof shpwrite === 'undefined') {
-            alert("La librería para shapefile no está cargada. Recarga la página.");
-            return;
-        }
-        try {
-            shpwrite.download(geojson, undefined, {
-                outputType: 'blob'
-            }).then(blob => {
-                saveAs(blob, `tomate_pro_${new Date().toISOString().slice(0,19)}.zip`);
-            }).catch(err => {
-                console.error(err);
-                alert("Error al generar shapefile: " + (err.message || "Error desconocido"));
-            });
-        } catch (err) {
-            console.error(err);
-            alert("Error al exportar: " + err.message);
-        }
+        const jsonStr = JSON.stringify(geojson, null, 2);
+        const blob = new Blob([jsonStr], { type: "application/geo+json" });
+        saveAs(blob, `tomate_pro_${new Date().toISOString().slice(0,19)}.geojson`);
+        alert(`✅ Exportados ${features.length} puntos a GeoJSON`);
     }
 
     renderApp();
 </script>
-
-
 </body>
 </html>
